@@ -1,0 +1,142 @@
+// frontend/src/components/logs/cards/ExpenseLogsCard.jsx
+import React from 'react';
+
+export default function ExpenseLogsCard({ expensesData, loading }) {
+  
+  // --- Helper Functions (Isolated for this component) ---
+  const formatTrxDate = (dateVal) => {
+    if (!dateVal) return '--:--';
+    try {
+      let dateStr = typeof dateVal === 'object' && dateVal.value ? dateVal.value : String(dateVal);
+      dateStr = dateStr.replace(' ', 'T');
+      const dateObj = new Date(dateStr);
+      if (isNaN(dateObj.getTime())) return 'Invalid Date';
+      
+      return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' - ' + 
+             dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
+  const getTrxColors = (type) => {
+    // Tailored for Expenses/Outflows
+    return { dot: 'bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]', text: 'text-rose-600', prefix: '- ' };
+  };
+
+  const getStatusBadge = (status) => {
+    if (status === 'SYSTEM') return 'bg-blue-50 text-blue-500 border-blue-200/50';
+    if (status === 'PENDING CEO') return 'bg-purple-50 text-purple-600 border-purple-200/50';
+    if (status === 'VERIFIED') return 'bg-emerald-50 text-emerald-600 border-emerald-200/50';
+    return 'bg-slate-50 text-slate-500 border-slate-200/50';
+  };
+
+  return (
+    // ✅ FIX: Replaced h-[450px] with min-h-[500px] h-[55vh] for taller, responsive cards
+    <div className="bg-white rounded-[2rem] border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] overflow-hidden animate-in slide-in-from-bottom-4 duration-500 flex flex-col min-h-[500px] h-[55vh]">
+      
+      
+      <div className="bg-rose-500 px-8 py-5 flex items-center justify-between relative overflow-hidden shrink-0">
+        
+        <div className="absolute -right-4 -top-12 w-32 h-32 bg-rose-400 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
+        
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-white font-bold text-lg tracking-wide uppercase">Expenses</h3>
+            <p className="text-rose-100 text-xs font-medium">All operational costs and payouts</p>
+          </div>
+        </div>
+        
+        <div className="bg-white/20 px-4 py-1.5 rounded-full backdrop-blur-sm relative z-10">
+          <span className="text-white text-xs font-bold">{expensesData?.length || 0} Records</span>
+        </div>
+      </div>
+
+      
+      <div className="overflow-auto grow [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative">
+        {loading ? (
+          <div className="h-full flex flex-col items-center justify-center space-y-4">
+            <span className="relative flex h-6 w-6">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-6 w-6 bg-rose-500"></span>
+            </span>
+            <p className="text-slate-400 font-medium tracking-wide animate-pulse">Loading expenses...</p>
+          </div>
+        ) : (
+          <table className="w-full text-left border-collapse">
+            
+            <thead className="sticky top-0 z-10">
+              <tr className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 shadow-sm">
+                <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Transaction ID</th>
+                <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Date & Time</th>
+                <th className="px-6 py-4 w-full bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Description</th>
+                <th className="px-6 py-4 text-right whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Amount (AED)</th>
+                <th className="px-6 py-4 text-center whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100/80 text-sm">
+              {!expensesData || expensesData.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>No expenses found for this period.</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                expensesData.map((trx, index) => {
+                  const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
+                  const { dot, text, prefix } = getTrxColors(trx.type);
+                  
+                  return (
+                    <tr key={index} className="hover:bg-rose-50/30 transition-colors group">
+                      
+                      <td className="px-6 py-4 text-slate-900 font-medium whitespace-nowrap">{trx.id}</td>
+                      <td className="px-6 py-4 text-slate-400 whitespace-nowrap font-light text-xs">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
+                      
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
+                          <div className="flex flex-col">
+                            
+                            <span className="text-slate-600 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
+                              {trx.description}
+                            </span>
+                            {billedVal > 0 && (
+                              <span className="text-[10px] text-slate-400 mt-0.5 tracking-wide">
+                                Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      
+                      <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tracking-tight ${text}`}>
+                        {prefix}{Math.abs(parseFloat(trx.amount || 0)).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                      </td>
+                      
+                      <td className="px-6 py-4 text-center whitespace-nowrap">
+                        <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
+                          {trx.status || 'COMPLETED'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
