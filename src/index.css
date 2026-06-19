@@ -1,0 +1,19 @@
+/* frontend/src/index.css */
+@import "tailwindcss";
+
+/* 1. Define your custom brand colors for Tailwind v4 */
+@theme {
+  --color-brand-dark: #2B2640;
+  --color-brand-light: #5F558C;
+  --color-brand-bg: #F9F9FB;
+}
+
+/* Optional: Add custom fonts or base styles here */
+:root {
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  /* 2. Now Tailwind knows exactly what bg-brand-bg is! */
+  @apply bg-brand-bg antialiased;
+}
