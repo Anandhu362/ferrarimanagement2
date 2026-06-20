@@ -92,7 +92,6 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
             
             <thead className="sticky top-0 z-10">
               <tr className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 shadow-sm">
-                <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Transaction ID</th>
                 <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Date & Time</th>
                 <th className="px-6 py-4 w-full bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Description</th>
                 <th className="px-6 py-4 text-right whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Amount (AED)</th>
@@ -102,7 +101,7 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
             <tbody className="divide-y divide-slate-100/80 text-sm">
               {!expensesData || expensesData.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
+                  <td colSpan="4" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -119,7 +118,6 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
                   return (
                     <tr key={index} className="hover:bg-rose-50/30 transition-colors group">
                       
-                      <td className="px-6 py-4 text-slate-900 font-medium whitespace-nowrap">{trx.id}</td>
                       <td className="px-6 py-4 text-slate-400 whitespace-nowrap font-light text-xs">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
                       
                       <td className="px-6 py-4">
