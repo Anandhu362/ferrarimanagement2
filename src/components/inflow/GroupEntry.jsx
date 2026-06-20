@@ -70,7 +70,7 @@ export default function GroupEntry() {
     if (!invoices || invoices.length === 0) return false;
 
     const areInvoicesValid = invoices.every(inv => 
-      isValidString(inv.invoiceNo) && 
+      // Removed isValidString(inv.invoiceNo) to make it optional
       isValidString(inv.companyName) && 
       isValidAmount(inv.amount)
     );
@@ -149,7 +149,13 @@ export default function GroupEntry() {
       const payload = {
         branchId: activeBranch,
         date: batchDate, 
-        invoices: invoices.filter(i => i.invoiceNo && parseFloat(i.amount) > 0),
+        // Filter out completely empty rows, but allow rows with amount + companyName. If no invoiceNo, default to 'NIL'
+        invoices: invoices
+          .filter(i => isValidString(i.companyName) && parseFloat(i.amount) > 0)
+          .map(i => ({
+            ...i,
+            invoiceNo: i.invoiceNo && i.invoiceNo.trim() !== '' ? i.invoiceNo.trim() : 'NIL'
+          })),
         expenses: showExpenses ? expenses.filter(e => e.description && parseFloat(e.amount) > 0) : [],
         denominations,
         netTotal: totals.net
@@ -310,7 +316,8 @@ export default function GroupEntry() {
                   <input type="text" placeholder="Company Name" value={inv.companyName} onChange={e => handleInvoiceChange(inv.id, 'companyName', e.target.value)} onKeyDown={handleKeyDown} className={baseInputClasses} />
                 </div>
                 <div className="w-1/4">
-                  <input type="text" placeholder="INV-001" value={inv.invoiceNo} onChange={e => handleInvoiceChange(inv.id, 'invoiceNo', e.target.value)} onKeyDown={handleKeyDown} className={`${baseInputClasses} uppercase`} />
+                  {/* Updated placeholder to show it's optional */}
+                  <input type="text" placeholder="INV-001 (Optional)" value={inv.invoiceNo} onChange={e => handleInvoiceChange(inv.id, 'invoiceNo', e.target.value)} onKeyDown={handleKeyDown} className={`${baseInputClasses} uppercase`} />
                 </div>
                 <div className="relative w-1/3">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">AED</span>

@@ -67,14 +67,16 @@ export default function AgentDashboard() {
 
   // --- Cart Actions ---
   const handleAddToCart = () => {
-    if (!currentCompany || !currentInvoice || !currentAmount) {
-      alert("Please enter a Company Name, Invoice Number, and Amount to add.");
+    // Removed !currentInvoice to make it optional
+    if (!currentCompany || !currentAmount) {
+      alert("Please enter a Company Name and Amount to add.");
       return;
     }
     
     setCartItems([...cartItems, { 
       companyName: currentCompany, 
-      invoiceNumber: currentInvoice,
+      // If currentInvoice is empty, default to 'NIL'
+      invoiceNumber: currentInvoice && currentInvoice.trim() !== '' ? currentInvoice.trim() : 'NIL',
       amount: currentAmount 
     }]);
     
@@ -191,9 +193,10 @@ export default function AgentDashboard() {
               </div>
 
               <div className="w-full md:flex-1">
+                {/* Updated placeholder */}
                 <input 
                   type="text"
-                  placeholder="Invoice No. (e.g. INV-001)"
+                  placeholder="Invoice No. (Optional)"
                   value={currentInvoice}
                   onChange={(e) => setCurrentInvoice(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-900 text-sm outline-none placeholder:text-slate-400 font-medium"

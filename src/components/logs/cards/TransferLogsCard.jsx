@@ -1,9 +1,35 @@
 // frontend/src/components/logs/cards/TransferLogsCard.jsx
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export default function TransferLogsCard({ transfersData, loading, isExpanded, onExpand }) {
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [transfersData, isExpanded]);
+
+  useEffect(() => {
+    if (selectedIndex >= 0 && containerRef.current) {
+      const rows = containerRef.current.querySelectorAll('tbody tr');
+      if (rows[selectedIndex]) {
+        rows[selectedIndex].scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selectedIndex]);
+
+  const handleKeyDown = (e) => {
+    if (!transfersData || transfersData.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((prev) => Math.min(prev + 1, transfersData.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    }
+  };
   
-  // --- Helper Functions (Isolated for this component) ---
   const formatTrxDate = (dateVal) => {
     if (!dateVal) return '--:--';
     try {
@@ -20,7 +46,6 @@ export default function TransferLogsCard({ transfersData, loading, isExpanded, o
   };
 
   const getTrxColors = (type) => {
-    // Tailored for Transfers and Exchanges
     if (type === 'EXCHANGE') return { dot: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]', text: 'text-amber-600', prefix: '≈ ' };
     return { dot: 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]', text: 'text-blue-600', prefix: '→ ' };
   };
@@ -37,11 +62,8 @@ export default function TransferLogsCard({ transfersData, loading, isExpanded, o
       isExpanded ? 'h-[75vh]' : 'min-h-[500px] h-[55vh]'
     }`}>
       
-      {/* Blue Banner Header - Added shrink-0 so it doesn't compress */}
       <div className="bg-blue-500 px-8 py-5 flex items-center justify-between relative overflow-hidden shrink-0">
-        {/* Subtle background decoration */}
         <div className="absolute -right-4 -top-12 w-32 h-32 bg-blue-400 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
-        
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,33 +75,26 @@ export default function TransferLogsCard({ transfersData, loading, isExpanded, o
             <p className="text-blue-100 text-xs font-medium">Vault movements and exchanges</p>
           </div>
         </div>
-        
-        {/* Top Right Controls: Count Badge & Expand Icon */}
         <div className="flex items-center gap-3 relative z-10">
           <div className="bg-white/20 px-4 py-1.5 rounded-full backdrop-blur-sm">
             <span className="text-white text-xs font-bold">{transfersData?.length || 0} Records</span>
           </div>
-          
-          <button 
-            onClick={onExpand}
-            className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-colors text-white"
-            title={isExpanded ? "Collapse View" : "Expand to Full Screen"}
-          >
+          <button onClick={onExpand} className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-colors text-white">
             {isExpanded ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 9V5m0 4H5m4 0l-5-5m11 5V5m0 4h4m-4 0l5-5M9 15v4m0-4H5m4 0l-5 5m11-5v4m0-4h4m-4 0l5 5" />
-              </svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 9V5m0 4H5m4 0l-5-5m11 5V5m0 4h4m-4 0l5-5M9 15v4m0-4H5m4 0l5 5m11-5v4m0-4h4m-4 0l5 5" /></svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-4v4m0 0h-4m4 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5 5" />
-              </svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-4v4m0 0h-4m4 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5 5" /></svg>
             )}
           </button>
         </div>
       </div>
 
-      {/* NEW: Scrollable Table Content with Custom Transparent Scrollbar */}
-      <div className="overflow-auto grow [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative">
+      <div 
+        ref={containerRef}
+        tabIndex={0} 
+        onKeyDown={handleKeyDown}
+        className="overflow-auto grow focus:outline-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative"
+      >
         {loading ? (
           <div className="h-full flex flex-col items-center justify-center space-y-4">
             <span className="relative flex h-6 w-6">
@@ -90,7 +105,6 @@ export default function TransferLogsCard({ transfersData, loading, isExpanded, o
           </div>
         ) : (
           <table className="w-full text-left border-collapse">
-            {/* NEW: Sticky Header */}
             <thead className="sticky top-0 z-10">
               <tr className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 shadow-sm">
                 <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Transaction ID</th>
@@ -116,23 +130,28 @@ export default function TransferLogsCard({ transfersData, loading, isExpanded, o
                 transfersData.map((trx, index) => {
                   const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
                   const { dot, text, prefix } = getTrxColors(trx.type);
+                  const isSelected = index === selectedIndex;
                   
                   return (
-                    <tr key={index} className="hover:bg-blue-50/30 transition-colors group">
-                      {/* Adjusted padding from px-8 to px-6 to fit better in grid */}
+                    <tr 
+                      key={index} 
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      className={`transition-colors group cursor-pointer ${
+                        isSelected ? 'bg-blue-100/60' : 'hover:bg-blue-50/30'
+                      }`}
+                    >
                       <td className="px-6 py-4 text-slate-900 font-medium whitespace-nowrap">{trx.id}</td>
-                      <td className="px-6 py-4 text-slate-400 whitespace-nowrap font-light text-xs">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
+                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
                       
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
                           <div className="flex flex-col">
-                            {/* Added line-clamp-1 to prevent super long descriptions from blowing up row height */}
-                            <span className="text-slate-600 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
+                            <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
                               {trx.description}
                             </span>
                             {billedVal > 0 && (
-                              <span className="text-[10px] text-slate-400 mt-0.5 tracking-wide">
+                              <span className="text-[10px] text-slate-500 mt-0.5 tracking-wide group-hover:text-slate-700 transition-colors">
                                 Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
                               </span>
                             )}
