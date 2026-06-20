@@ -4,11 +4,15 @@ import React, { useState, useEffect, useRef } from 'react';
 export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onExpand }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const containerRef = useRef(null);
+  
+  // Track if navigation is currently via keyboard to prevent hover jumping
+  const isKeyboardNav = useRef(false);
 
   useEffect(() => {
     setSelectedIndex(-1);
   }, [expensesData, isExpanded]);
 
+  // Auto-scroll to keep the selected row in view
   useEffect(() => {
     if (selectedIndex >= 0 && containerRef.current) {
       const rows = containerRef.current.querySelectorAll('tbody tr');
@@ -18,15 +22,25 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
     }
   }, [selectedIndex]);
 
+  // Handle keyboard navigation
   const handleKeyDown = (e) => {
     if (!expensesData || expensesData.length === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
+      isKeyboardNav.current = true; // Lock mouse hover
       setSelectedIndex((prev) => Math.min(prev + 1, expensesData.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
+      isKeyboardNav.current = true; // Lock mouse hover
       setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    }
+  };
+
+  // Re-enable mouse selection ONLY if the physical mouse moves
+  const handleMouseMove = (e) => {
+    if (Math.abs(e.movementX) > 0 || Math.abs(e.movementY) > 0) {
+      isKeyboardNav.current = false;
     }
   };
   
@@ -88,10 +102,12 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
         </div>
       </div>
 
+      {/* Added onMouseMove listener here */}
       <div 
         ref={containerRef}
         tabIndex={0} 
         onKeyDown={handleKeyDown}
+        onMouseMove={handleMouseMove}
         className="overflow-auto grow focus:outline-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative"
       >
         {loading ? (
@@ -133,7 +149,12 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
                   return (
                     <tr 
                       key={index} 
-                      onMouseEnter={() => setSelectedIndex(index)}
+                      onMouseEnter={() => {
+                        // Only trigger hover if we are NOT using the keyboard
+                        if (!isKeyboardNav.current) {
+                          setSelectedIndex(index);
+                        }
+                      }}
                       className={`transition-colors group cursor-pointer ${
                         isSelected ? 'bg-rose-100/60' : 'hover:bg-rose-50/30'
                       }`}

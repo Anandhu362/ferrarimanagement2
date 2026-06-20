@@ -4,6 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExpand }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const containerRef = useRef(null);
+  
+  // Track if navigation is currently via keyboard to prevent hover jumping
+  const isKeyboardNav = useRef(false); 
 
   // Reset selection when data changes or modal state changes
   useEffect(() => {
@@ -26,10 +29,19 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
 
     if (e.key === 'ArrowDown') {
       e.preventDefault(); // Prevent page scrolling
+      isKeyboardNav.current = true; // Lock mouse hover
       setSelectedIndex((prev) => Math.min(prev + 1, inflowsData.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
+      isKeyboardNav.current = true; // Lock mouse hover
       setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    }
+  };
+
+  // Re-enable mouse selection ONLY if the physical mouse moves (ignores scroll-induced mousemoves)
+  const handleMouseMove = (e) => {
+    if (Math.abs(e.movementX) > 0 || Math.abs(e.movementY) > 0) {
+      isKeyboardNav.current = false;
     }
   };
   
@@ -75,6 +87,7 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
       isExpanded ? 'h-[75vh]' : 'min-h-[500px] h-[55vh]'
     }`}>
       
+      {/* Emerald Banner Header */}
       <div className="bg-emerald-500 px-8 py-5 flex items-center justify-between relative overflow-hidden shrink-0">
         <div className="absolute -right-4 -top-12 w-32 h-32 bg-emerald-400 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
         <div className="relative z-10 flex items-center gap-3">
@@ -102,10 +115,12 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
         </div>
       </div>
 
+      {/* Scrollable Table Content with Mouse Move Listener */}
       <div 
         ref={containerRef}
         tabIndex={0} 
         onKeyDown={handleKeyDown}
+        onMouseMove={handleMouseMove}
         className="overflow-auto grow focus:outline-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative"
       >
         {loading ? (
@@ -147,7 +162,12 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                   return (
                     <tr 
                       key={index} 
-                      onMouseEnter={() => setSelectedIndex(index)}
+                      onMouseEnter={() => {
+                        // Only trigger hover if we are NOT using the keyboard
+                        if (!isKeyboardNav.current) {
+                          setSelectedIndex(index);
+                        }
+                      }}
                       className={`transition-colors group cursor-pointer ${
                         isSelected ? 'bg-emerald-100/60' : 'hover:bg-emerald-50/30'
                       }`}
@@ -161,6 +181,7 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                             <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
                               {extractCompanyName(trx.description)}
                             </span>
+                            
                             {billedVal > 0 && (
                               <span className="text-[10px] text-slate-500 mt-0.5 tracking-wide group-hover:text-slate-700 transition-colors">
                                 Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
