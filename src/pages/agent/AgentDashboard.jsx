@@ -107,8 +107,12 @@ export default function AgentDashboard() {
       return;
     }
 
+    // Generate a unique idempotency key for this session
+    const uniqueSessionId = `SESSION-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
     navigate('/agent/expenses', {
       state: {
+        clientSessionId: uniqueSessionId, // IDEMPOTENCY KEY ADDED HERE
         totalCollected: totalAmount,
         collections: cartItems,
         date: date,
