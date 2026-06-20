@@ -5,6 +5,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import PremiumCalendar from '../../components/shared/PremiumCalendar';
 import RecentCollections from '../../components/agent/RecentCollections'; 
+import { Preferences } from '@capacitor/preferences'; // Added Capacitor Preferences
 
 export default function AgentDashboard() {
   const [agentName, setAgentName] = useState('Agent');
@@ -30,15 +31,32 @@ export default function AgentDashboard() {
 
   // --- Initialization ---
   useEffect(() => {
-    const savedName = localStorage.getItem('agent_name');
-    if (savedName) setAgentName(savedName);
+    const loadNativeData = async () => {
+      // Fetch the saved name from native device storage
+      const { value: savedName } = await Preferences.get({ key: 'agent_name' });
+      if (savedName) setAgentName(savedName);
+    };
+
+    loadNativeData();
   }, []);
 
   const handleLogout = async () => {
-    await signOut(auth);
-    localStorage.removeItem('agent_name');
-    localStorage.removeItem('active_branch');
-    navigate('/agent-login');
+    try {
+      // 1. Sign out of Firebase
+      await signOut(auth);
+
+      // 2. Clear native Capacitor preferences
+      await Preferences.remove({ key: 'agent_name' });
+      await Preferences.remove({ key: 'active_branch' });
+
+      // Fallback: Clear standard localStorage just in case older code relies on it
+      localStorage.clear();
+
+      // 3. Redirect to login
+      navigate('/agent-login');
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   // --- Cart Actions ---
@@ -64,8 +82,8 @@ export default function AgentDashboard() {
     setCartItems(cartItems.filter((_, index) => index !== indexToRemove));
   };
 
-  // --- Submit Handler (UPDATED WITH STRICT TENANT VALIDATION) ---
-  const handleSubmit = (e) => {
+  // --- Submit Handler (UPDATED FOR ASYNC NATIVE STORAGE) ---
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (cartItems.length === 0) {
@@ -73,9 +91,10 @@ export default function AgentDashboard() {
       return;
     }
 
-    // Explicitly pull the latest local storage values
-    const activeBranch = localStorage.getItem('active_branch');
-    const currentAgentName = localStorage.getItem('agent_name') || agentName;
+    // Explicitly pull the latest native storage values
+    const { value: activeBranch } = await Preferences.get({ key: 'active_branch' });
+    const { value: storedName } = await Preferences.get({ key: 'agent_name' });
+    const currentAgentName = storedName || agentName;
 
     // 🚨 STRICT VALIDATION GATE: Block submission if branch is missing
     if (!activeBranch || activeBranch.trim() === '') {
