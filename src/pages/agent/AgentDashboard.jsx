@@ -1,6 +1,6 @@
 // frontend/src/pages/agent/AgentDashboard.jsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom'; // 1. Added useLocation
+import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import PremiumCalendar from '../../components/shared/PremiumCalendar';
@@ -9,58 +9,56 @@ import { Preferences } from '@capacitor/preferences';
 
 export default function AgentDashboard() {
   const navigate = useNavigate();
-  const location = useLocation(); // 2. Hook to read the instantly passed login data
-
-  // 3. UPDATED STATE: Check for the instantly passed name first, fallback to 'Agent'
-  const [agentName, setAgentName] = useState(location.state?.freshAgentName || 'Agent');
+  
+  // Start with default, we will forcefully update it in the useEffect
+  const [agentName, setAgentName] = useState('Agent');
 
   // --- Form & UI State ---
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  
-  // Date State
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  
-  // Temporary state for the current item being typed in the Add Row
   const [currentCompany, setCurrentCompany] = useState('');
   const [currentInvoice, setCurrentInvoice] = useState('');
   const [currentAmount, setCurrentAmount] = useState('');
-  
-  // Cart state holding all added company collections
   const [cartItems, setCartItems] = useState([]);
 
-  // --- Derived State ---
-  // Calculate total amount from all items in the cart
   const totalAmount = cartItems.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
 
-  // --- Initialization ---
+  // --- Initialization (UPDATED FOR ROUTING RACE CONDITIONS) ---
   useEffect(() => {
+    let attempts = 0;
+    let intervalId;
+
     const loadNativeData = async () => {
-      // 4. UPDATED LOGIC: Only fetch from native storage if React Router didn't just hand us the fresh name
-      if (!location.state?.freshAgentName) {
-        // This automatically handles the 'CapacitorStorage.' prefix in the browser!
-        const { value: savedName } = await Preferences.get({ key: 'agent_name' });
-        if (savedName) {
-          setAgentName(savedName);
-        }
+      const { value: savedName } = await Preferences.get({ key: 'agent_name' });
+      
+      // If we successfully get the real name, update UI and stop checking
+      if (savedName && savedName !== 'Agent') {
+        setAgentName(savedName);
+        clearInterval(intervalId); 
+      } else if (attempts > 10) {
+        // Failsafe: stop checking after ~5 seconds to prevent infinite loops
+        clearInterval(intervalId);
       }
+      attempts++;
     };
 
+    // 1. Check immediately on page load
     loadNativeData();
-  }, [location.state]); // Added location.state as a dependency
+
+    // 2. Poll every 500ms. This catches the data the exact moment the background 
+    // login function finishes saving it to Capacitor storage.
+    intervalId = setInterval(loadNativeData, 500);
+
+    // Cleanup interval if the component unmounts
+    return () => clearInterval(intervalId);
+  }, []);
 
   const handleLogout = async () => {
     try {
-      // 1. Sign out of Firebase
       await signOut(auth);
-
-      // 2. Clear native Capacitor preferences
       await Preferences.remove({ key: 'agent_name' });
       await Preferences.remove({ key: 'active_branch' });
-
-      // Fallback: Clear standard localStorage just in case older code relies on it
       localStorage.clear();
-
-      // 3. Redirect to login
       navigate('/agent-login');
     } catch (error) {
       console.error("Logout failed:", error);
@@ -80,7 +78,6 @@ export default function AgentDashboard() {
       amount: currentAmount 
     }]);
     
-    // Clear inputs for the next entry
     setCurrentCompany('');
     setCurrentInvoice('');
     setCurrentAmount('');
@@ -99,25 +96,22 @@ export default function AgentDashboard() {
       return;
     }
 
-    // Explicitly pull the latest native storage values
     const { value: activeBranch } = await Preferences.get({ key: 'active_branch' });
     const { value: storedName } = await Preferences.get({ key: 'agent_name' });
     const currentAgentName = storedName || agentName;
 
-    // 🚨 STRICT VALIDATION GATE: Block submission if branch is missing
     if (!activeBranch || activeBranch.trim() === '') {
       alert("CRITICAL ERROR: Branch ID is missing from your session. Your data cannot be routed to the correct desk. Please log out and log back in.");
-      return; // Stop the flow entirely
+      return;
     }
 
-    // Navigate to the expense page with the full session data attached
     navigate('/agent/expenses', {
       state: {
         totalCollected: totalAmount,
         collections: cartItems,
         date: date,
         agentName: currentAgentName,
-        branchId: activeBranch // Safely pass the verified baton
+        branchId: activeBranch
       }
     });
   };
@@ -185,10 +179,8 @@ export default function AgentDashboard() {
           <div className="border-t border-slate-100 pt-6">
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Add Collection Details</label>
             
-            {/* Input Grid: Normal Company Name, Invoice No, and Amount */}
             <div className="flex flex-col md:flex-row gap-3 items-start">
               <div className="w-full md:flex-[1.5]">
-                {/* Normal Text Input for Company Name */}
                 <input 
                   type="text"
                   placeholder="Enter Company Name..."
@@ -199,7 +191,6 @@ export default function AgentDashboard() {
               </div>
 
               <div className="w-full md:flex-1">
-                {/* Invoice Number Input */}
                 <input 
                   type="text"
                   placeholder="Invoice No. (e.g. INV-001)"
@@ -232,13 +223,11 @@ export default function AgentDashboard() {
             </div>
           </div>
 
-          {/* Cart Items Display List (Review Section) */}
           {cartItems.length > 0 && (
             <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-2 space-y-1 mt-6">
               {cartItems.map((item, index) => (
                 <div key={index} className="flex justify-between items-center bg-white border border-slate-100 p-3.5 rounded-xl shadow-sm">
                   <div className="flex flex-col">
-                    {/* Shows Company Name as the main label, and Invoice Number right underneath */}
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">{item.companyName}</span>
                     <span className="text-sm font-semibold text-slate-900">INV: {item.invoiceNumber}</span>
                   </div>
@@ -257,7 +246,6 @@ export default function AgentDashboard() {
             </div>
           )}
 
-          {/* Submit Button */}
           <button 
             type="submit"
             disabled={cartItems.length === 0}
