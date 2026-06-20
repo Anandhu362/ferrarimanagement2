@@ -25,20 +25,45 @@ export default function AgentDenominationEntry() {
 
     // Check if data was passed via router state from the Expenses page
     if (location.state && location.state.financialSummary) {
-      setSessionData(location.state);
+      const incomingData = location.state;
+      setSessionData(incomingData);
+      
+      // ✅ FIX 1: Rehydrate denominations if they already exist in the payload
+      if (incomingData.denominations) {
+        setDenominations(incomingData.denominations);
+      }
+
       // Keep local storage updated with the latest step
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(location.state));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(incomingData));
     } else {
       // Recovery mode: if refreshed, pull from local storage
       const recoveredData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (recoveredData) {
-        setSessionData(JSON.parse(recoveredData));
+        const parsedData = JSON.parse(recoveredData);
+        setSessionData(parsedData);
+
+        // ✅ FIX 2: Rehydrate denominations on page refresh to prevent wipeouts
+        if (parsedData.denominations) {
+          setDenominations(parsedData.denominations);
+        }
       } else {
         alert("No active session found. Redirecting to Dashboard.");
         navigate('/agent-dashboard');
       }
     }
   }, [location, navigate]);
+
+  // ✅ FIX 3: Auto-save denominations to local storage instantly as they are typed
+  useEffect(() => {
+    if (sessionData && sessionData.financialSummary) {
+      const currentBackup = localStorage.getItem('temp_agent_session_data');
+      if (currentBackup) {
+        const parsedBackup = JSON.parse(currentBackup);
+        parsedBackup.denominations = denominations;
+        localStorage.setItem('temp_agent_session_data', JSON.stringify(parsedBackup));
+      }
+    }
+  }, [denominations, sessionData]);
 
   // --- Live Calculations ---
   // Calculate total cash entered based on note counts
@@ -87,9 +112,9 @@ export default function AgentDenominationEntry() {
     try {
       // Build the massive final payload
       const finalPayload = {
-        date: sessionData.date,
+        sessionDate: sessionData.date, 
         agentName: sessionData.agentName,
-        branchId: sessionData.branchId || "AL FAJAR AUH",
+        branchId: sessionData.branchId, // Strictly use the branch passed down the pipeline
         financialSummary: sessionData.financialSummary,
         collections: sessionData.collections,
         expenses: sessionData.expenses,

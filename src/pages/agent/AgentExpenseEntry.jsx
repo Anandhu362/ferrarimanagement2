@@ -6,12 +6,13 @@ export default function AgentExpenseEntry() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // --- Core Session Data (Collections + Total) ---
+  // --- Core Session Data (Collections + Total + Branch) ---
   const [sessionData, setSessionData] = useState({
     totalCollected: 0,
     collections: [],
     date: new Date().toISOString().split('T')[0],
-    agentName: 'Agent'
+    agentName: 'Agent',
+    branchId: ''
   });
 
   // --- Expense Form & Cart State ---
@@ -33,9 +34,17 @@ export default function AgentExpenseEntry() {
         totalCollected: location.state.totalCollected,
         collections: location.state.collections || [],
         date: location.state.date,
-        agentName: location.state.agentName || localStorage.getItem('agent_name') || 'Agent'
+        agentName: location.state.agentName || localStorage.getItem('agent_name') || 'Agent',
+        branchId: location.state.branchId || localStorage.getItem('active_branch') || 'AL FAJAR AUH' 
       };
       setSessionData(incomingData);
+
+      // ✅ FIX 1: Rehydrate expenses if the user clicked "Back" from Step 3
+      if (location.state.expenses && Array.isArray(location.state.expenses)) {
+        setExpenses(location.state.expenses);
+        incomingData.expenses = location.state.expenses; // Append to backup
+      }
+
       // Immediately backup to local storage in case they refresh the page
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(incomingData));
     } 
@@ -43,7 +52,14 @@ export default function AgentExpenseEntry() {
     else {
       const recoveredData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (recoveredData) {
-        setSessionData(JSON.parse(recoveredData));
+        const parsedData = JSON.parse(recoveredData);
+        setSessionData(parsedData);
+
+        // ✅ FIX 2: Rehydrate expenses if the user refreshed the page mid-entry
+        if (parsedData.expenses && Array.isArray(parsedData.expenses)) {
+          setExpenses(parsedData.expenses);
+        }
+        
         console.log("Session recovered from local storage.");
       } else {
         // If there is no state and no local storage backup, send them back to start
@@ -52,6 +68,18 @@ export default function AgentExpenseEntry() {
       }
     }
   }, [location, navigate]);
+
+  // ✅ FIX 3: Auto-save to local storage instantly as expenses are added/removed
+  useEffect(() => {
+    if (sessionData && sessionData.totalCollected !== undefined) {
+      const currentBackup = localStorage.getItem('temp_agent_session_data');
+      if (currentBackup) {
+        const parsedBackup = JSON.parse(currentBackup);
+        parsedBackup.expenses = expenses;
+        localStorage.setItem('temp_agent_session_data', JSON.stringify(parsedBackup));
+      }
+    }
+  }, [expenses, sessionData]);
 
   // --- Expense Cart Actions ---
   const handleAddExpense = () => {
@@ -78,7 +106,7 @@ export default function AgentExpenseEntry() {
   const handleProceedToDenominations = (e) => {
     e.preventDefault();
 
-    // Create the updated payload combining collections, expenses, and the financial summary
+    // Create the updated payload combining collections, expenses, the branch, and the financial summary
     const updatedSessionData = {
       ...sessionData,
       financialSummary: {

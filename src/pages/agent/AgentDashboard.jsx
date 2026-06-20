@@ -37,6 +37,7 @@ export default function AgentDashboard() {
   const handleLogout = async () => {
     await signOut(auth);
     localStorage.removeItem('agent_name');
+    localStorage.removeItem('active_branch');
     navigate('/agent-login');
   };
 
@@ -63,7 +64,7 @@ export default function AgentDashboard() {
     setCartItems(cartItems.filter((_, index) => index !== indexToRemove));
   };
 
-  // --- Submit Handler (UPDATED FOR MULTI-STEP FLOW) ---
+  // --- Submit Handler (UPDATED WITH STRICT TENANT VALIDATION) ---
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -72,13 +73,24 @@ export default function AgentDashboard() {
       return;
     }
 
-    // Instead of API post, navigate to the expense page with the session data attached
+    // Explicitly pull the latest local storage values
+    const activeBranch = localStorage.getItem('active_branch');
+    const currentAgentName = localStorage.getItem('agent_name') || agentName;
+
+    // 🚨 STRICT VALIDATION GATE: Block submission if branch is missing
+    if (!activeBranch || activeBranch.trim() === '') {
+      alert("CRITICAL ERROR: Branch ID is missing from your session. Your data cannot be routed to the correct desk. Please log out and log back in.");
+      return; // Stop the flow entirely
+    }
+
+    // Navigate to the expense page with the full session data attached
     navigate('/agent/expenses', {
       state: {
         totalCollected: totalAmount,
         collections: cartItems,
         date: date,
-        agentName: agentName
+        agentName: currentAgentName,
+        branchId: activeBranch // Safely pass the verified baton
       }
     });
   };

@@ -1,7 +1,7 @@
 // frontend/src/components/logs/cards/PettyCashLogsCard.jsx
 import React from 'react';
 
-export default function PettyCashLogsCard({ pettyCashData, loading }) {
+export default function PettyCashLogsCard({ pettyCashData, loading, isExpanded, onExpand }) {
   
   // --- Helper Functions (Isolated for this component) ---
   const formatTrxDate = (dateVal) => {
@@ -32,8 +32,9 @@ export default function PettyCashLogsCard({ pettyCashData, loading }) {
   };
 
   return (
-    // ✅ FIX: Replaced h-[450px] with min-h-[500px] h-[55vh] for taller, responsive cards
-    <div className="bg-white rounded-[2rem] border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] overflow-hidden animate-in slide-in-from-bottom-4 duration-500 flex flex-col min-h-[500px] h-[55vh]">
+    <div className={`bg-white rounded-[2rem] border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] overflow-hidden animate-in slide-in-from-bottom-4 duration-500 flex flex-col transition-all ${
+      isExpanded ? 'h-[75vh]' : 'min-h-[500px] h-[55vh]'
+    }`}>
       
       {/* Amber Banner Header - Added shrink-0 so it doesn't compress */}
       <div className="bg-amber-500 px-8 py-5 flex items-center justify-between relative overflow-hidden shrink-0">
@@ -52,8 +53,27 @@ export default function PettyCashLogsCard({ pettyCashData, loading }) {
           </div>
         </div>
         
-        <div className="bg-white/20 px-4 py-1.5 rounded-full backdrop-blur-sm relative z-10">
-          <span className="text-white text-xs font-bold">{pettyCashData?.length || 0} Records</span>
+        {/* Top Right Controls: Count Badge & Expand Icon */}
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="bg-white/20 px-4 py-1.5 rounded-full backdrop-blur-sm">
+            <span className="text-white text-xs font-bold">{pettyCashData?.length || 0} Records</span>
+          </div>
+          
+          <button 
+            onClick={onExpand}
+            className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-colors text-white"
+            title={isExpanded ? "Collapse View" : "Expand to Full Screen"}
+          >
+            {isExpanded ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 9V5m0 4H5m4 0l-5-5m11 5V5m0 4h4m-4 0l5-5M9 15v4m0-4H5m4 0l5 5m11-5v4m0-4h4m-4 0l5 5" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-4v4m0 0h-4m4 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5 5" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
 

@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { auth } from '../../config/firebase'; // Ensure this points to your firebase config
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { auth, db } from '../../config/firebase'; // Added db import
 
 export default function AgentLogin() {
   const [mobileNumber, setMobileNumber] = useState('');
@@ -23,19 +24,45 @@ export default function AgentLogin() {
       // 2. Format mobile back to the internal email structure expected by Firebase
       const internalEmail = `${mobileNumber}@agent.ferrarifoods.com`;
 
-      // 3. Authenticate with Firebase
+      // 3. Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, internalEmail, password);
+      const user = userCredential.user;
       
-      // 4. Save display name locally for the dashboard greeting
-      const agentName = userCredential.user.displayName || 'Agent';
-      localStorage.setItem('agent_name', agentName);
+      // 4. Query the agents collection to get the specific Branch details
+      const q = query(collection(db, 'agents'), where('uid', '==', user.uid));
+      const querySnapshot = await getDocs(q);
 
-      // 5. Route to the secure agent dashboard
+      let agentName = user.displayName || 'Agent';
+      let branchName = '';
+
+      if (!querySnapshot.empty) {
+        const agentData = querySnapshot.docs[0].data();
+        agentName = agentData.fullName || agentName;
+        branchName = agentData.branchName; // Extract the branch (e.g., "Sharjha")
+      }
+
+      // 🚨 Security Block: Prevent login if the agent is not assigned to a branch
+      if (!branchName) {
+        // Sign them back out immediately to prevent ghost sessions
+        await auth.signOut();
+        throw new Error("No branch assigned to this account. Please contact admin.");
+      }
+
+      // 5. Save display name and branch locally for the dashboard and data routing
+      localStorage.setItem('agent_name', agentName);
+      localStorage.setItem('active_branch', branchName); // This fixes the missing tenant!
+
+      // 6. Route to the secure agent dashboard
       navigate('/agent-dashboard');
 
     } catch (error) {
       console.error(error);
-      setErrorMsg("Invalid mobile number or password.");
+      // Differentiate between our custom branch error and standard Firebase auth errors
+      if (error.message.includes("No branch assigned")) {
+        setErrorMsg(error.message);
+      } else {
+        setErrorMsg("Invalid mobile number or password.");
+      }
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,6 @@
 // frontend/src/pages/logs/LogsPage.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // ✅ Added for error navigation
+import { useNavigate } from 'react-router-dom';
 import PremiumCalendar from '../../components/shared/PremiumCalendar';
 import DailySummaryCards from '../../components/logs/DailySummaryCards';
 import ExportLedgerModal from '../../components/logs/ExportLedgerModal';
@@ -14,7 +14,7 @@ import api from '../../config/api';
 export default function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [branchError, setBranchError] = useState(false); // ✅ Branch Error State
+  const [branchError, setBranchError] = useState(false); 
   const navigate = useNavigate();
   
   // State for the Calendar Filter
@@ -24,14 +24,16 @@ export default function LogsPage() {
   // State for Export Modal
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
+  // ✅ New State: Tracks which card is currently maximized (full-screen)
+  const [expandedCard, setExpandedCard] = useState(null); // 'inflows', 'expenses', 'transfers', 'pettyCash', or null
+
   // fetchLogs now accepts a date parameter to dynamically switch endpoints
   const fetchLogs = async (dateToFetch = selectedDate) => {
     setLoading(true);
     try {
-      // ✅ Removed the hardcoded 'DXB-MAIN' fallback
       const activeBranch = localStorage.getItem('active_branch');
       
-      // ✅ Safety check to prevent querying null paths if local storage is cleared
+      // Safety check to prevent querying null paths if local storage is cleared
       if (!activeBranch) {
         setBranchError(true);
         setLoading(false);
@@ -81,13 +83,22 @@ export default function LogsPage() {
     fetchLogs(date); // Immediately fetch new data when date changes
   };
 
+  // ✅ Function to handle expanding/collapsing a card
+  const handleExpandToggle = (cardName) => {
+    if (expandedCard === cardName) {
+      setExpandedCard(null); // Collapse if already expanded
+    } else {
+      setExpandedCard(cardName); // Expand the clicked card
+    }
+  };
+
   // --- Data Filtering Logic ---
   const inflows = logs.filter(t => t.type === 'INFLOW' || t.type === 'TEMP_INFLOW');
   const expenses = logs.filter(t => t.type === 'OUTFLOW' || t.type === 'EXPENSE');
   const transfers = logs.filter(t => t.type === 'TRANSFER' || t.type === 'EXCHANGE');
   const pettyCash = logs.filter(t => t.type === 'PETTY_CASH');
 
-  // ✅ Branch Error UI Block
+  // Branch Error UI Block
   if (branchError) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -118,78 +129,131 @@ export default function LogsPage() {
           </p>
         </div>
         
-        {/* Filter, Export & Refresh Actions */}
-        <div className="flex items-center gap-3">
-          
-          {/* ✅ 1. FILTER DATE BLOCK */}
-          <div className="relative">
+        {/* Filter, Export & Refresh Actions (Hidden if a card is expanded to save space) */}
+        {!expandedCard && (
+          <div className="flex items-center gap-3">
+            
+            {/* FILTER DATE BLOCK */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all shadow-sm border ${
+                  selectedDate 
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-md hover:bg-slate-800' 
+                    : 'bg-white text-slate-600 border-slate-200 hover:text-brand-dark hover:border-brand-light/30'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {selectedDate 
+                  ? new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) 
+                  : 'Filter Date'}
+              </button>
+
+              <PremiumCalendar 
+                isOpen={isCalendarOpen} 
+                onClose={() => setIsCalendarOpen(false)} 
+                selectedDate={selectedDate}
+                onDateSelect={handleDateSelect}
+              />
+            </div>
+
+            {/* EXPORT LEDGER BLOCK */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsExportModalOpen(!isExportModalOpen)}
+                className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl border border-emerald-200/50 text-sm font-medium hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export Ledger
+              </button>
+
+              <ExportLedgerModal 
+                isOpen={isExportModalOpen} 
+                onClose={() => setIsExportModalOpen(false)} 
+              />
+            </div>
+
+            {/* REFRESH BUTTON */}
             <button 
-              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all shadow-sm border ${
-                selectedDate 
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-md hover:bg-slate-800' 
-                  : 'bg-white text-slate-600 border-slate-200 hover:text-brand-dark hover:border-brand-light/30'
-              }`}
+              onClick={() => fetchLogs()}
+              className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:text-brand-dark hover:border-brand-light/30 transition-all shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              {selectedDate 
-                ? new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) 
-                : 'Filter Date'}
+              Refresh
             </button>
-
-            <PremiumCalendar 
-              isOpen={isCalendarOpen} 
-              onClose={() => setIsCalendarOpen(false)} 
-              selectedDate={selectedDate}
-              onDateSelect={handleDateSelect}
-            />
           </div>
-
-          {/* ✅ 2. EXPORT LEDGER BLOCK (Moved here and wrapped in relative div) */}
-          <div className="relative">
-            <button 
-              onClick={() => setIsExportModalOpen(!isExportModalOpen)}
-              className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl border border-emerald-200/50 text-sm font-medium hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Export Ledger
-            </button>
-
-            {/* The modal is now directly tied to the button above it */}
-            <ExportLedgerModal 
-              isOpen={isExportModalOpen} 
-              onClose={() => setIsExportModalOpen(false)} 
-            />
-          </div>
-
-          {/* ✅ 3. REFRESH BUTTON */}
-          <button 
-            onClick={() => fetchLogs()}
-            className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:text-brand-dark hover:border-brand-light/30 transition-all shadow-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </button>
-        </div>
+        )}
       </div>
 
       {/* Conditional Rendering of Daily Summary Cards */}
-      {selectedDate && !loading && (
+      {selectedDate && !loading && !expandedCard && (
         <DailySummaryCards logs={logs} />
       )}
 
-      {/* Dashboard Grid View for Table Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <InflowLogsCard inflowsData={inflows} loading={loading} />
-        <ExpenseLogsCard expensesData={expenses} loading={loading} />
-        <TransferLogsCard transfersData={transfers} loading={loading} />
-        <PettyCashLogsCard pettyCashData={pettyCash} loading={loading} />
+      {/* ✅ Dashboard Grid View for Table Cards */}
+      {/* If expandedCard is set, remove the grid styling so the single card takes up the full space */}
+      <div className={`transition-all duration-500 ${expandedCard ? 'block' : 'grid grid-cols-1 lg:grid-cols-2 gap-6'}`}>
+        
+        {/* Back Button (Only shows when a card is expanded) */}
+        {expandedCard && (
+          <div className="mb-4 animate-in fade-in slide-in-from-left-4">
+            <button 
+              onClick={() => setExpandedCard(null)}
+              className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300 px-4 py-2 rounded-xl shadow-sm transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Dashboard View
+            </button>
+          </div>
+        )}
+
+        {/* ✅ INFLOWS CARD */}
+        {(!expandedCard || expandedCard === 'inflows') && (
+          <InflowLogsCard 
+            inflowsData={inflows} 
+            loading={loading} 
+            isExpanded={expandedCard === 'inflows'}
+            onExpand={() => handleExpandToggle('inflows')} 
+          />
+        )}
+
+        {/* ✅ EXPENSES CARD */}
+        {(!expandedCard || expandedCard === 'expenses') && (
+          <ExpenseLogsCard 
+            expensesData={expenses} 
+            loading={loading} 
+            isExpanded={expandedCard === 'expenses'}
+            onExpand={() => handleExpandToggle('expenses')} 
+          />
+        )}
+
+        {/* ✅ TRANSFERS CARD */}
+        {(!expandedCard || expandedCard === 'transfers') && (
+          <TransferLogsCard 
+            transfersData={transfers} 
+            loading={loading} 
+            isExpanded={expandedCard === 'transfers'}
+            onExpand={() => handleExpandToggle('transfers')} 
+          />
+        )}
+
+        {/* ✅ PETTY CASH CARD */}
+        {(!expandedCard || expandedCard === 'pettyCash') && (
+          <PettyCashLogsCard 
+            pettyCashData={pettyCash} 
+            loading={loading} 
+            isExpanded={expandedCard === 'pettyCash'}
+            onExpand={() => handleExpandToggle('pettyCash')} 
+          />
+        )}
       </div>
 
     </div>
