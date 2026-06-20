@@ -28,7 +28,7 @@ export default function AgentDenominationEntry() {
       const incomingData = location.state;
       setSessionData(incomingData);
       
-      // ✅ FIX 1: Rehydrate denominations if they already exist in the payload
+      // Rehydrate denominations if they already exist in the payload
       if (incomingData.denominations) {
         setDenominations(incomingData.denominations);
       }
@@ -42,7 +42,7 @@ export default function AgentDenominationEntry() {
         const parsedData = JSON.parse(recoveredData);
         setSessionData(parsedData);
 
-        // ✅ FIX 2: Rehydrate denominations on page refresh to prevent wipeouts
+        // Rehydrate denominations on page refresh to prevent wipeouts
         if (parsedData.denominations) {
           setDenominations(parsedData.denominations);
         }
@@ -53,7 +53,7 @@ export default function AgentDenominationEntry() {
     }
   }, [location, navigate]);
 
-  // ✅ FIX 3: Auto-save denominations to local storage instantly as they are typed
+  // Auto-save denominations to local storage instantly as they are typed
   useEffect(() => {
     if (sessionData && sessionData.financialSummary) {
       const currentBackup = localStorage.getItem('temp_agent_session_data');
@@ -112,6 +112,7 @@ export default function AgentDenominationEntry() {
     try {
       // Build the massive final payload
       const finalPayload = {
+        clientSessionId: sessionData.clientSessionId, // ✅ FIX: Added the critical clientSessionId
         sessionDate: sessionData.date, 
         agentName: sessionData.agentName,
         branchId: sessionData.branchId, // Strictly use the branch passed down the pipeline

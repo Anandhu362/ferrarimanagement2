@@ -8,6 +8,7 @@ export default function AgentExpenseEntry() {
 
   // --- Core Session Data (Collections + Total + Branch) ---
   const [sessionData, setSessionData] = useState({
+    clientSessionId: '', // ✅ FIX: Added clientSessionId to default state
     totalCollected: 0,
     collections: [],
     date: new Date().toISOString().split('T')[0],
@@ -31,6 +32,7 @@ export default function AgentExpenseEntry() {
     // 1. Check if we arrived here via standard navigation from the Dashboard
     if (location.state && location.state.totalCollected !== undefined) {
       const incomingData = {
+        clientSessionId: location.state.clientSessionId || `SESSION-REC-${Date.now()}`, // ✅ FIX: Safely capture the ID
         totalCollected: location.state.totalCollected,
         collections: location.state.collections || [],
         date: location.state.date,
@@ -39,7 +41,7 @@ export default function AgentExpenseEntry() {
       };
       setSessionData(incomingData);
 
-      // ✅ FIX 1: Rehydrate expenses if the user clicked "Back" from Step 3
+      // Rehydrate expenses if the user clicked "Back" from Step 3
       if (location.state.expenses && Array.isArray(location.state.expenses)) {
         setExpenses(location.state.expenses);
         incomingData.expenses = location.state.expenses; // Append to backup
@@ -55,7 +57,7 @@ export default function AgentExpenseEntry() {
         const parsedData = JSON.parse(recoveredData);
         setSessionData(parsedData);
 
-        // ✅ FIX 2: Rehydrate expenses if the user refreshed the page mid-entry
+        // Rehydrate expenses if the user refreshed the page mid-entry
         if (parsedData.expenses && Array.isArray(parsedData.expenses)) {
           setExpenses(parsedData.expenses);
         }
@@ -69,7 +71,7 @@ export default function AgentExpenseEntry() {
     }
   }, [location, navigate]);
 
-  // ✅ FIX 3: Auto-save to local storage instantly as expenses are added/removed
+  // Auto-save to local storage instantly as expenses are added/removed
   useEffect(() => {
     if (sessionData && sessionData.totalCollected !== undefined) {
       const currentBackup = localStorage.getItem('temp_agent_session_data');
@@ -108,7 +110,7 @@ export default function AgentExpenseEntry() {
 
     // Create the updated payload combining collections, expenses, the branch, and the financial summary
     const updatedSessionData = {
-      ...sessionData,
+      ...sessionData, // ✅ FIX: This now natively includes the clientSessionId
       financialSummary: {
         totalCollected: sessionData.totalCollected,
         totalExpenses: totalExpenses,
