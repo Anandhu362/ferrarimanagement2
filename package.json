@@ -15,8 +15,10 @@
     "dist": "electron-builder"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
     "@capacitor/cli": "^8.3.1",
     "@capacitor/core": "^8.3.1",
+    "@capacitor/preferences": "^8.0.1",
     "axios": "^1.15.2",
     "firebase": "^12.12.0",
     "jspdf": "^4.2.1",

@@ -1,5 +1,10 @@
 {
-  "appId": "com.ferrarifoods.management",
+  "appId": "com.ferrarimanagement.app",
   "appName": "Ferrari Foods",
-  "webDir": "dist"
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://ferrarimanagement2.vercel.app/agent-login",
+    "cleartext": true
+  }
 }

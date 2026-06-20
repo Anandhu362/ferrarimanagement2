@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase'; // Added db import
+import { Preferences } from '@capacitor/preferences'; // Imported Capacitor Preferences
 
 export default function AgentLogin() {
   const [mobileNumber, setMobileNumber] = useState('');
@@ -48,9 +49,10 @@ export default function AgentLogin() {
         throw new Error("No branch assigned to this account. Please contact admin.");
       }
 
-      // 5. Save display name and branch locally for the dashboard and data routing
-      localStorage.setItem('agent_name', agentName);
-      localStorage.setItem('active_branch', branchName); // This fixes the missing tenant!
+      // 5. Save display name and branch natively for the dashboard and data routing
+      // Replaced localStorage with Capacitor Preferences for mobile persistence
+      await Preferences.set({ key: 'agent_name', value: agentName });
+      await Preferences.set({ key: 'active_branch', value: branchName });
 
       // 6. Route to the secure agent dashboard
       navigate('/agent-dashboard');
