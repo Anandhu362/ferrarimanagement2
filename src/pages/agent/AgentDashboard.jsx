@@ -1,15 +1,18 @@
 // frontend/src/pages/agent/AgentDashboard.jsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom'; // 1. Added useLocation
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import PremiumCalendar from '../../components/shared/PremiumCalendar';
 import RecentCollections from '../../components/agent/RecentCollections'; 
-import { Preferences } from '@capacitor/preferences'; // Added Capacitor Preferences
+import { Preferences } from '@capacitor/preferences';
 
 export default function AgentDashboard() {
-  const [agentName, setAgentName] = useState('Agent');
   const navigate = useNavigate();
+  const location = useLocation(); // 2. Hook to read the instantly passed login data
+
+  // 3. UPDATED STATE: Check for the instantly passed name first, fallback to 'Agent'
+  const [agentName, setAgentName] = useState(location.state?.freshAgentName || 'Agent');
 
   // --- Form & UI State ---
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -32,13 +35,18 @@ export default function AgentDashboard() {
   // --- Initialization ---
   useEffect(() => {
     const loadNativeData = async () => {
-      // Fetch the saved name from native device storage
-      const { value: savedName } = await Preferences.get({ key: 'agent_name' });
-      if (savedName) setAgentName(savedName);
+      // 4. UPDATED LOGIC: Only fetch from native storage if React Router didn't just hand us the fresh name
+      if (!location.state?.freshAgentName) {
+        // This automatically handles the 'CapacitorStorage.' prefix in the browser!
+        const { value: savedName } = await Preferences.get({ key: 'agent_name' });
+        if (savedName) {
+          setAgentName(savedName);
+        }
+      }
     };
 
     loadNativeData();
-  }, []);
+  }, [location.state]); // Added location.state as a dependency
 
   const handleLogout = async () => {
     try {
@@ -82,7 +90,7 @@ export default function AgentDashboard() {
     setCartItems(cartItems.filter((_, index) => index !== indexToRemove));
   };
 
-  // --- Submit Handler (UPDATED FOR ASYNC NATIVE STORAGE) ---
+  // --- Submit Handler ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     

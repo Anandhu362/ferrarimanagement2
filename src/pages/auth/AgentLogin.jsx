@@ -54,8 +54,10 @@ export default function AgentLogin() {
       await Preferences.set({ key: 'agent_name', value: agentName });
       await Preferences.set({ key: 'active_branch', value: branchName });
 
-      // 6. Route to the secure agent dashboard
-      navigate('/agent-dashboard');
+      // 6. Route to the secure agent dashboard and pass the name instantly
+      navigate('/agent-dashboard', { 
+        state: { freshAgentName: agentName } 
+      });
 
     } catch (error) {
       console.error(error);
