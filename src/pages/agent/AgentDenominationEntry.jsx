@@ -3,16 +3,21 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../config/api';
 
+// ✅ Import the SyncManager hook for offline routing
+import { useSync } from '../../context/SyncManager'; 
+
 export default function AgentDenominationEntry() {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // ✅ Extract online status and offline queue function
+  const { isOnline, queuePayload } = useSync();
 
   // --- Core Session Data ---
   const [sessionData, setSessionData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- Denominations State ---
-  // Tracks the count of each note/coin entered by the agent
   const [denominations, setDenominations] = useState({
     1000: '', 500: '', 200: '', 100: '', 
     50: '', 20: '', 10: '', 5: '', 
@@ -23,26 +28,21 @@ export default function AgentDenominationEntry() {
   useEffect(() => {
     const LOCAL_STORAGE_KEY = 'temp_agent_session_data';
 
-    // Check if data was passed via router state from the Expenses page
     if (location.state && location.state.financialSummary) {
       const incomingData = location.state;
       setSessionData(incomingData);
       
-      // Rehydrate denominations if they already exist in the payload
       if (incomingData.denominations) {
         setDenominations(incomingData.denominations);
       }
 
-      // Keep local storage updated with the latest step
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(incomingData));
     } else {
-      // Recovery mode: if refreshed, pull from local storage
       const recoveredData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (recoveredData) {
         const parsedData = JSON.parse(recoveredData);
         setSessionData(parsedData);
 
-        // Rehydrate denominations on page refresh to prevent wipeouts
         if (parsedData.denominations) {
           setDenominations(parsedData.denominations);
         }
@@ -53,7 +53,6 @@ export default function AgentDenominationEntry() {
     }
   }, [location, navigate]);
 
-  // Auto-save denominations to local storage instantly as they are typed
   useEffect(() => {
     if (sessionData && sessionData.financialSummary) {
       const currentBackup = localStorage.getItem('temp_agent_session_data');
@@ -66,7 +65,6 @@ export default function AgentDenominationEntry() {
   }, [denominations, sessionData]);
 
   // --- Live Calculations ---
-  // Calculate total cash entered based on note counts
   const totalEntered = Object.entries(denominations).reduce((sum, [value, count]) => {
     const numericCount = parseInt(count) || 0;
     return sum + (parseFloat(value) * numericCount);
@@ -75,7 +73,6 @@ export default function AgentDenominationEntry() {
   const targetAmount = sessionData?.financialSummary?.netHandoverAmount || 0;
   const isBalanced = totalEntered === targetAmount;
   
-  // Calculate progress percentage for the bar (capped at 100%)
   const progressPercentage = targetAmount > 0 
     ? Math.min((totalEntered / targetAmount) * 100, 100) 
     : 0;
@@ -88,7 +85,6 @@ export default function AgentDenominationEntry() {
     }));
   };
 
-  // STRICT Input Validation: Block 'e', '+', '-', and '.'
   const blockInvalidChars = (e) => {
     if (['e', 'E', '+', '-', '.'].includes(e.key)) {
       e.preventDefault();
@@ -103,17 +99,14 @@ export default function AgentDenominationEntry() {
     });
   };
 
-  // ✅ NEW: Safe Back Navigation to Expenses Page
+  // --- Safe Back Navigation ---
   const handleGoBack = () => {
     if (sessionData) {
-      // Force an immediate local storage sync of the typed notes before leaving
       const backupData = {
         ...sessionData,
         denominations: denominations
       };
       localStorage.setItem('temp_agent_session_data', JSON.stringify(backupData));
-      
-      // Pass the fully assembled data back to the Expense page
       navigate('/agent/expenses', { state: backupData });
     } else {
       navigate(-1);
@@ -122,27 +115,36 @@ export default function AgentDenominationEntry() {
 
   // --- Final Submission API Call ---
   const handleSubmitFinal = async () => {
-    if (!isBalanced) return; // Extra security gate
+    if (!isBalanced) return; 
     
     setIsSubmitting(true);
 
-    try {
-      // Build the massive final payload
-      const finalPayload = {
-        clientSessionId: sessionData.clientSessionId, 
-        sessionDate: sessionData.date, 
-        agentName: sessionData.agentName,
-        branchId: sessionData.branchId, 
-        financialSummary: sessionData.financialSummary,
-        collections: sessionData.collections,
-        expenses: sessionData.expenses,
-        denominations: denominations 
-      };
+    const finalPayload = {
+      clientSessionId: sessionData.clientSessionId, 
+      sessionDate: sessionData.date, 
+      agentName: sessionData.agentName,
+      branchId: sessionData.branchId, 
+      financialSummary: sessionData.financialSummary,
+      collections: sessionData.collections,
+      expenses: sessionData.expenses,
+      denominations: denominations 
+    };
 
+    // ✅ THE MAGIC OFFLINE ROUTER
+    // If there's no internet, bypass the API call, lock the data in the local queue, and redirect safely.
+    if (!isOnline) {
+      queuePayload(finalPayload);
+      localStorage.removeItem('temp_agent_session_data');
+      alert('You are currently offline. Data has been saved securely to the phone. It will sync automatically when the internet returns.');
+      navigate('/agent-dashboard');
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
       const response = await api.post('/api/inflow/complete-session', finalPayload);
 
       if (response.data.success) {
-        // ONLY clear local storage if the server successfully saved the data
         localStorage.removeItem('temp_agent_session_data');
         alert('Session Synced Successfully!');
         navigate('/agent-dashboard');
@@ -155,14 +157,13 @@ export default function AgentDenominationEntry() {
     }
   };
 
-  // Don't render UI until session data is recovered
   if (!sessionData) return null; 
 
   const denomList = [1000, 500, 200, 100, 50, 20, 10, 5, 1, 0.5];
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 font-sans flex flex-col">
-      {/* Header with NEW Back Button */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-6 mt-4">
         <div className="flex items-center gap-4">
           <button 
@@ -179,9 +180,18 @@ export default function AgentDenominationEntry() {
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Verify Cash Notes</h1>
           </div>
         </div>
-        <button onClick={handleClearAll} className="text-sm font-semibold text-rose-500 hover:text-rose-600 bg-rose-50 px-4 py-2 rounded-lg transition-colors">
-          Clear All
-        </button>
+        <div className="flex items-center gap-3">
+          {/* ✅ Offline Indicator UI */}
+          {!isOnline && (
+            <div className="bg-rose-100 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm border border-rose-200">
+              <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
+              Offline Mode
+            </div>
+          )}
+          <button onClick={handleClearAll} className="text-sm font-semibold text-rose-500 hover:text-rose-600 bg-rose-50 px-4 py-2 rounded-lg transition-colors">
+            Clear All
+          </button>
+        </div>
       </div>
 
       {/* Target vs Entered Highlight Card */}
@@ -220,7 +230,7 @@ export default function AgentDenominationEntry() {
       <div className="flex-1 bg-white rounded-[2rem] border border-slate-200/60 shadow-sm p-4 sm:p-6 mb-24">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {denomList.map((val) => (
-            <div key={val} className="flex items-center justify-between p-3 border border-slate-100 bg-slate-50/50 rounded-2xl">
+            <div key={val} className="flex items-center justify-between p-3 border border-slate-100 bg-slate-50/50 rounded-2xl hover:border-emerald-200 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-8 bg-emerald-100/50 rounded flex items-center justify-center border border-emerald-200/50">
                   <span className="text-xs font-bold text-emerald-600">💵</span>
@@ -237,7 +247,7 @@ export default function AgentDenominationEntry() {
                   value={denominations[val]}
                   onChange={(e) => handleDenominationChange(val, e.target.value)}
                   onKeyDown={blockInvalidChars}
-                  className="w-20 text-center font-bold text-slate-900 bg-white border border-slate-200 rounded-xl py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-300"
+                  className="w-20 text-center font-bold text-slate-900 bg-white border border-slate-200 rounded-xl py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-300 shadow-sm"
                   placeholder="0"
                 />
               </div>
@@ -259,7 +269,7 @@ export default function AgentDenominationEntry() {
             }`}
           >
             {isSubmitting ? (
-              'Syncing...'
+              'Processing...'
             ) : isBalanced ? (
               <>Complete Valid Details to Sync <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg></>
             ) : (
@@ -268,7 +278,6 @@ export default function AgentDenominationEntry() {
           </button>
         </div>
       </div>
-
     </div>
   );
 }
