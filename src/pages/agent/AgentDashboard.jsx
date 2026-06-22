@@ -1,6 +1,6 @@
 // frontend/src/pages/agent/AgentDashboard.jsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom'; // ✅ ADDED useLocation
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import PremiumCalendar from '../../components/shared/PremiumCalendar';
@@ -9,8 +9,8 @@ import { Preferences } from '@capacitor/preferences';
 
 export default function AgentDashboard() {
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ ADDED
   
-  // Start with default, we will forcefully update it in the useEffect
   const [agentName, setAgentName] = useState('Agent');
 
   // --- Form & UI State ---
@@ -23,10 +23,28 @@ export default function AgentDashboard() {
 
   const totalAmount = cartItems.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
 
-  // --- Initialization (UPDATED FOR ROUTING RACE CONDITIONS) ---
+  // --- Initialization & Data Recovery ---
   useEffect(() => {
     let attempts = 0;
     let intervalId;
+
+    // ✅ NEW: Recover Cart Items if navigating "Back" from Step 2
+    if (location.state && location.state.collections) {
+      setCartItems(location.state.collections);
+      if (location.state.date) setDate(location.state.date);
+    } else {
+      // Fallback: Check local storage for an active uncompleted session
+      const recoveredData = localStorage.getItem('temp_agent_session_data');
+      if (recoveredData) {
+        try {
+          const parsedData = JSON.parse(recoveredData);
+          if (parsedData.collections) setCartItems(parsedData.collections);
+          if (parsedData.date) setDate(parsedData.date);
+        } catch(e) {
+          console.error("Error parsing local session data");
+        }
+      }
+    }
 
     const loadNativeData = async () => {
       const { value: savedName } = await Preferences.get({ key: 'agent_name' });
@@ -45,13 +63,11 @@ export default function AgentDashboard() {
     // 1. Check immediately on page load
     loadNativeData();
 
-    // 2. Poll every 500ms. This catches the data the exact moment the background 
-    // login function finishes saving it to Capacitor storage.
+    // 2. Poll every 500ms
     intervalId = setInterval(loadNativeData, 500);
 
-    // Cleanup interval if the component unmounts
     return () => clearInterval(intervalId);
-  }, []);
+  }, [location]);
 
   const handleLogout = async () => {
     try {
@@ -67,7 +83,6 @@ export default function AgentDashboard() {
 
   // --- Cart Actions ---
   const handleAddToCart = () => {
-    // Removed !currentInvoice to make it optional
     if (!currentCompany || !currentAmount) {
       alert("Please enter a Company Name and Amount to add.");
       return;
@@ -75,7 +90,6 @@ export default function AgentDashboard() {
     
     setCartItems([...cartItems, { 
       companyName: currentCompany, 
-      // If currentInvoice is empty, default to 'NIL'
       invoiceNumber: currentInvoice && currentInvoice.trim() !== '' ? currentInvoice.trim() : 'NIL',
       amount: currentAmount 
     }]);
@@ -107,12 +121,22 @@ export default function AgentDashboard() {
       return;
     }
 
-    // Generate a unique idempotency key for this session
-    const uniqueSessionId = `SESSION-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    // Check if we already generated a session ID (to prevent generating a new one if they clicked Back)
+    let sessionKey = location.state?.clientSessionId;
+    if (!sessionKey) {
+      const recoveredData = localStorage.getItem('temp_agent_session_data');
+      if (recoveredData) {
+        try {
+           sessionKey = JSON.parse(recoveredData).clientSessionId;
+        } catch(e) {}
+      }
+    }
+    
+    const uniqueSessionId = sessionKey || `SESSION-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     navigate('/agent/expenses', {
       state: {
-        clientSessionId: uniqueSessionId, // IDEMPOTENCY KEY ADDED HERE
+        clientSessionId: uniqueSessionId, 
         totalCollected: totalAmount,
         collections: cartItems,
         date: date,
@@ -197,7 +221,6 @@ export default function AgentDashboard() {
               </div>
 
               <div className="w-full md:flex-1">
-                {/* Updated placeholder */}
                 <input 
                   type="text"
                   placeholder="Invoice No. (Optional)"

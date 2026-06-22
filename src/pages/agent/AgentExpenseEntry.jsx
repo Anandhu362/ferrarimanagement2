@@ -8,7 +8,7 @@ export default function AgentExpenseEntry() {
 
   // --- Core Session Data (Collections + Total + Branch) ---
   const [sessionData, setSessionData] = useState({
-    clientSessionId: '', // ✅ FIX: Added clientSessionId to default state
+    clientSessionId: '', 
     totalCollected: 0,
     collections: [],
     date: new Date().toISOString().split('T')[0],
@@ -32,7 +32,7 @@ export default function AgentExpenseEntry() {
     // 1. Check if we arrived here via standard navigation from the Dashboard
     if (location.state && location.state.totalCollected !== undefined) {
       const incomingData = {
-        clientSessionId: location.state.clientSessionId || `SESSION-REC-${Date.now()}`, // ✅ FIX: Safely capture the ID
+        clientSessionId: location.state.clientSessionId || `SESSION-REC-${Date.now()}`, 
         totalCollected: location.state.totalCollected,
         collections: location.state.collections || [],
         date: location.state.date,
@@ -61,8 +61,6 @@ export default function AgentExpenseEntry() {
         if (parsedData.expenses && Array.isArray(parsedData.expenses)) {
           setExpenses(parsedData.expenses);
         }
-        
-        console.log("Session recovered from local storage.");
       } else {
         // If there is no state and no local storage backup, send them back to start
         alert("No active collection session found. Redirecting to Dashboard.");
@@ -104,13 +102,29 @@ export default function AgentExpenseEntry() {
     setExpenses(expenses.filter((_, index) => index !== indexToRemove));
   };
 
+  // ✅ NEW: Safe Back Navigation to Dashboard
+  const handleGoBack = () => {
+    if (sessionData) {
+      // Force an immediate local storage sync before leaving
+      const backupData = {
+        ...sessionData,
+        expenses: expenses
+      };
+      localStorage.setItem('temp_agent_session_data', JSON.stringify(backupData));
+      
+      // Pass the data back so the dashboard can rehydrate the cart
+      navigate('/agent-dashboard', { state: backupData });
+    } else {
+      navigate(-1);
+    }
+  };
+
   // --- Proceed to Step 3 ---
   const handleProceedToDenominations = (e) => {
     e.preventDefault();
 
-    // Create the updated payload combining collections, expenses, the branch, and the financial summary
     const updatedSessionData = {
-      ...sessionData, // ✅ FIX: This now natively includes the clientSessionId
+      ...sessionData,
       financialSummary: {
         totalCollected: sessionData.totalCollected,
         totalExpenses: totalExpenses,
@@ -128,11 +142,22 @@ export default function AgentExpenseEntry() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 font-sans flex flex-col">
-      {/* Header */}
+      {/* Header with NEW Back Button */}
       <div className="flex justify-between items-center mb-8 mt-4">
-        <div>
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Step 2 of 3</p>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Record Expenses</h1>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleGoBack}
+            className="w-10 h-10 bg-white border border-slate-200 shadow-sm rounded-full flex items-center justify-center text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-all"
+            title="Go Back to Dashboard"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Step 2 of 3</p>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Record Expenses</h1>
+          </div>
         </div>
       </div>
 
