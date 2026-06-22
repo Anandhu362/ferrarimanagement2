@@ -1,3 +1,4 @@
+// frontend/src/components/sales/DenominationSidebar.jsx
 import React from 'react';
 
 export default function DenominationSidebar({ denominations = {} }) {
@@ -6,7 +7,8 @@ export default function DenominationSidebar({ denominations = {} }) {
 
   // Calculate total cash exactly as represented by the physical notes
   const totalPhysicalCash = denomList.reduce((sum, denom) => {
-    const count = parseInt(denominations[denom]) || 0;
+    // Added radix 10 to parseInt for stricter parsing of aggregated strings
+    const count = parseInt(denominations[denom], 10) || 0;
     return sum + (parseFloat(denom) * count);
   }, 0);
 
@@ -14,15 +16,15 @@ export default function DenominationSidebar({ denominations = {} }) {
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-        <h2 className="text-lg font-bold text-slate-800 tracking-tight">Physical Cash</h2>
-        <p className="text-xs font-medium text-slate-500 mt-1">Live vault breakdown</p>
+        <h2 className="text-lg font-bold text-slate-800 tracking-tight">Aggregated Cash</h2>
+        <p className="text-xs font-medium text-slate-500 mt-1">Combined batch vault breakdown</p>
       </div>
 
       {/* Denomination List */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="space-y-3">
           {denomList.map((denom) => {
-            const count = parseInt(denominations[denom]) || 0;
+            const count = parseInt(denominations[denom], 10) || 0;
             const totalValue = count * parseFloat(denom);
             
             // Dim rows with 0 count to highlight the actual cash held
@@ -67,7 +69,7 @@ export default function DenominationSidebar({ denominations = {} }) {
       <div className="p-6 bg-[#2A2B3D] text-white border-t border-slate-800">
         <div className="flex justify-between items-end">
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Verified</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Batch Value</p>
             <p className="text-2xl font-black tracking-tight text-emerald-400">
               <span className="text-sm text-slate-400 font-medium mr-1">AED</span> 
               {totalPhysicalCash.toFixed(2)}

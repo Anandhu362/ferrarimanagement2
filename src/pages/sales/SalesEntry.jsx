@@ -16,8 +16,8 @@ export default function SalesEntry() {
   const [allPendingExpenses, setAllPendingExpenses] = useState([]);
   const [allPendingSessions, setAllPendingSessions] = useState([]);
   
-  // --- UI State ---
-  const [activeSessionId, setActiveSessionId] = useState(null);
+  // --- UI State (MULTI-SELECT) ---
+  const [selectedSessionIds, setSelectedSessionIds] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,12 +34,16 @@ export default function SalesEntry() {
       sessions.sort((a, b) => a.createdAt?.toMillis() - b.createdAt?.toMillis());
       setAllPendingSessions(sessions);
       
-      // Auto-select the oldest session if none is selected
-      if (sessions.length > 0 && !activeSessionId) {
-        setActiveSessionId(sessions[0].id);
-      } else if (sessions.length === 0) {
-        setActiveSessionId(null);
-      }
+      // Smart Auto-Selection Logic
+      setSelectedSessionIds(prev => {
+        // Remove any selected IDs that are no longer in the pending queue (e.g., just vaulted)
+        const validIds = prev.filter(id => sessions.some(s => s.id === id));
+        // If nothing is selected but bags exist, auto-select the oldest one
+        if (validIds.length === 0 && sessions.length > 0) {
+          return [sessions[0].id];
+        }
+        return validIds;
+      });
       setIsLoading(false); 
     });
 
@@ -56,57 +60,81 @@ export default function SalesEntry() {
     });
 
     return () => { unsubCol(); unsubExp(); unsubSess(); };
-  }, [activeSessionId]);
+  }, []); // Empty dependency array, relies on internal state functions
 
-  // --- Isolate Data for the Selected Session ---
-  const activeSessionData = useMemo(() => {
-    if (!activeSessionId) return null;
+  // --- Toggle Multi-Select ---
+  const toggleSessionSelection = (sessionId) => {
+    setSelectedSessionIds(prev => {
+      if (prev.includes(sessionId)) {
+        return prev.filter(id => id !== sessionId); // Deselect
+      } else {
+        return [...prev, sessionId]; // Select
+      }
+    });
+  };
 
-    const masterSession = allPendingSessions.find(s => s.id === activeSessionId);
-    if (!masterSession) return null;
+  // --- AGGREGATE Data for the Selected Sessions ---
+  const aggregatedSessionData = useMemo(() => {
+    if (selectedSessionIds.length === 0) return null;
 
-    // Filter collections and expenses that belong ONLY to this session
-    const sessionCollections = allPendingCollections.filter(c => c.sessionId === activeSessionId);
-    const sessionExpenses = allPendingExpenses.filter(e => e.sessionId === activeSessionId);
+    const selectedMasters = allPendingSessions.filter(s => selectedSessionIds.includes(s.id));
+    
+    // Filter collections and expenses that belong ONLY to the selected sessions
+    const selectedCollections = allPendingCollections.filter(c => selectedSessionIds.includes(c.sessionId));
+    const selectedExpenses = allPendingExpenses.filter(e => selectedSessionIds.includes(e.sessionId));
 
-    const grossTotal = sessionCollections.reduce((sum, col) => sum + (parseFloat(col.amount) || 0), 0);
-    const totalExp = sessionExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+    const grossTotal = selectedCollections.reduce((sum, col) => sum + (parseFloat(col.amount) || 0), 0);
+    const totalExp = selectedExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+
+    // Aggregate physical cash denominations across all selected bags
+    const aggregatedDenominations = {};
+    const denomKeys = [1000, 500, 200, 100, 50, 20, 10, 5, 1, 0.5];
+    
+    selectedMasters.forEach(session => {
+      if (session.denominations) {
+        denomKeys.forEach(key => {
+          const count = parseInt(session.denominations[key]) || 0;
+          aggregatedDenominations[key] = (aggregatedDenominations[key] || 0) + count;
+        });
+      }
+    });
 
     return {
-      master: masterSession,
-      collections: sessionCollections,
-      expenses: sessionExpenses,
+      masters: selectedMasters,
+      collections: selectedCollections,
+      expenses: selectedExpenses,
       grossTotal: grossTotal,
       totalExpenses: totalExp,
       netTotal: grossTotal - totalExp,
-      denominations: masterSession.denominations || {}
+      denominations: aggregatedDenominations
     };
-  }, [activeSessionId, allPendingSessions, allPendingCollections, allPendingExpenses]);
+  }, [selectedSessionIds, allPendingSessions, allPendingCollections, allPendingExpenses]);
 
-  // --- Enterprise Verification & Vaulting ---
+  // --- Enterprise Verification & Vaulting (MULTI-BAG) ---
   const handleVaultSync = async () => {
-    if (!activeSessionData || activeSessionData.collections.length === 0) return;
+    if (!aggregatedSessionData || aggregatedSessionData.collections.length === 0) return;
     
     setIsSubmitting(true);
-    const activeBranch = localStorage.getItem('active_branch') || activeSessionData.master.branchId;
+    // Use branch ID from the first selected master as fallback
+    const fallbackBranchId = aggregatedSessionData.masters[0]?.branchId;
+    const activeBranch = localStorage.getItem('active_branch') || fallbackBranchId;
 
     try {
-      // Construct the secure payload for ONE specific session
+      // Construct the secure payload mapping ALL selected sessions
       const payload = {
         branchId: activeBranch, 
-        transactionIds: activeSessionData.collections.map(record => record.id),
-        expenses: activeSessionData.expenses, 
-        sessionIds: [activeSessionData.master.id], // Close out this specific session
-        denominations: activeSessionData.denominations,
-        netTotal: activeSessionData.netTotal
+        transactionIds: aggregatedSessionData.collections.map(record => record.id),
+        expenses: aggregatedSessionData.expenses, 
+        sessionIds: selectedSessionIds, 
+        denominations: aggregatedSessionData.denominations,
+        netTotal: aggregatedSessionData.netTotal
       };
 
       const response = await api.post('/api/inflow/verify-bulk', payload);
 
       if (response.data.success) {
-        alert(`Session for ${activeSessionData.master.agentName} successfully verified and vaulted!`);
-        // The real-time listeners will automatically remove the vaulted data from the screen.
-        setActiveSessionId(null); // Reset selection
+        alert(`Successfully verified and vaulted ${selectedSessionIds.length} batched sessions!`);
+        setSelectedSessionIds([]); // Reset selection entirely
       }
     } catch (error) {
       console.error("Vault submission failed:", error);
@@ -116,7 +144,7 @@ export default function SalesEntry() {
     }
   };
 
-  // Top Bar global aggregations (Totals across ALL pending sessions)
+  // Top Bar global aggregations (Totals across ALL pending queues)
   const globalGrossPending = allPendingCollections.reduce((sum, col) => sum + (parseFloat(col.amount) || 0), 0);
   const pendingCount = allPendingSessions.length;
 
@@ -141,21 +169,26 @@ export default function SalesEntry() {
         ) : (
           <div className="flex flex-col gap-6">
             
-            {/* NEW: Session Selection Queue */}
+            {/* Session Selection Queue (MULTI-SELECT) */}
             {allPendingSessions.length > 0 ? (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 overflow-x-auto">
                 <div className="flex gap-3 min-w-max">
                   {allPendingSessions.map(session => (
                     <button
                       key={session.id}
-                      onClick={() => setActiveSessionId(session.id)}
+                      onClick={() => toggleSessionSelection(session.id)}
                       className={`px-5 py-3 rounded-xl border flex flex-col items-start transition-all ${
-                        activeSessionId === session.id 
+                        selectedSessionIds.includes(session.id)
                           ? 'bg-slate-900 border-slate-900 text-white shadow-md' 
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100'
                       }`}
                     >
-                      <span className="text-xs font-bold uppercase tracking-wider opacity-80 mb-1">
+                      <span className="text-xs font-bold uppercase tracking-wider opacity-80 mb-1 flex items-center gap-1">
+                        {selectedSessionIds.includes(session.id) && (
+                          <svg className="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                          </svg>
+                        )}
                         {session.date}
                       </span>
                       <span className="font-bold text-sm">
@@ -171,39 +204,40 @@ export default function SalesEntry() {
               </div>
             )}
 
-            {/* Display Active Session Details */}
-            {activeSessionData && (
+            {/* Display Aggregated Active Details */}
+            {aggregatedSessionData && selectedSessionIds.length > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-300">
                 
                 {/* Left/Center Column: Data Tables */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
                   <div className="h-[400px]">
-                    <LiveCollectionsTable collections={activeSessionData.collections} />
+                    <LiveCollectionsTable collections={aggregatedSessionData.collections} />
                   </div>
                   
                   <div className="h-[300px]">
-                    <LiveExpensesList expenses={activeSessionData.expenses} />
+                    <LiveExpensesList expenses={aggregatedSessionData.expenses} />
                   </div>
                 </div>
 
                 {/* Right Column: Physical Cash Verification & Action */}
                 <div className="lg:col-span-1 flex flex-col gap-6">
                   <div className="flex-1 min-h-[500px]">
-                    <DenominationSidebar denominations={activeSessionData.denominations} />
+                    {/* Passes down the freshly calculated sum of all selected cash */}
+                    <DenominationSidebar denominations={aggregatedSessionData.denominations} />
                   </div>
 
                   {/* Action Card */}
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-4">
                     <div className="flex justify-between items-center text-sm font-bold text-slate-500 uppercase tracking-widest">
-                      <span>Net Expected</span>
-                      <span className="text-emerald-600">AED {activeSessionData.netTotal.toFixed(2)}</span>
+                      <span>Net Expected ({selectedSessionIds.length} Bags)</span>
+                      <span className="text-emerald-600">AED {aggregatedSessionData.netTotal.toFixed(2)}</span>
                     </div>
                     
                     <button 
                       onClick={handleVaultSync} 
-                      disabled={isSubmitting || activeSessionData.collections.length === 0}
+                      disabled={isSubmitting || aggregatedSessionData.collections.length === 0}
                       className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all duration-300 flex items-center justify-center gap-3 ${
-                        activeSessionData.collections.length > 0 && !isSubmitting
+                        aggregatedSessionData.collections.length > 0 && !isSubmitting
                           ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30 hover:-translate-y-0.5' 
                           : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                       }`}
@@ -217,7 +251,10 @@ export default function SalesEntry() {
                           Processing Vault...
                         </>
                       ) : (
-                        <>Verify {activeSessionData.master.agentName}'s Bag <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></>
+                        <>
+                          Verify {selectedSessionIds.length} Selected Bag{selectedSessionIds.length > 1 ? 's' : ''} 
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </>
                       )}
                     </button>
                   </div>

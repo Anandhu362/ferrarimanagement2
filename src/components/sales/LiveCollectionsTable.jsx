@@ -1,3 +1,4 @@
+// frontend/src/components/sales/LiveCollectionsTable.jsx
 import React, { useState } from 'react';
 import EditCollectionModal from './EditCollectionModal';
 
@@ -10,12 +11,25 @@ export default function LiveCollectionsTable({ collections = [] }) {
     setIsEditModalOpen(true);
   };
 
+  // Helper function to generate consistent initials for the avatar badge
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
+
   return (
     <>
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
         {/* Header section */}
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <h2 className="text-lg font-bold text-slate-800 tracking-tight">Pending Collections</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-slate-800 tracking-tight">Batch Collections</h2>
+            {collections.length > 0 && (
+              <span className="bg-slate-200 text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                {collections.length} items
+              </span>
+            )}
+          </div>
           <div className="bg-emerald-100/50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
             Live Queue
@@ -23,10 +37,10 @@ export default function LiveCollectionsTable({ collections = [] }) {
         </div>
 
         {/* Table Container */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[600px]">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse min-w-[650px]">
+            <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
+              <tr className="border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                 <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4">Agent Name</th>
                 <th className="px-6 py-4">Company Name</th>
@@ -53,9 +67,19 @@ export default function LiveCollectionsTable({ collections = [] }) {
                     <td className="px-6 py-4 text-sm text-slate-500 font-medium whitespace-nowrap">
                       {col.date}
                     </td>
-                    <td className="px-6 py-4 text-sm font-bold text-slate-800 whitespace-nowrap">
-                      {col.agentName}
+                    
+                    {/* ENHANCED: Agent Name Column with Visual Avatar */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold border border-indigo-200 shadow-sm">
+                          {getInitials(col.agentName)}
+                        </div>
+                        <span className="text-sm font-bold text-slate-800">
+                          {col.agentName}
+                        </span>
+                      </div>
                     </td>
+
                     <td className="px-6 py-4 text-sm text-slate-600 font-medium max-w-[200px] truncate" title={col.companyName}>
                       {col.companyName}
                     </td>
@@ -67,7 +91,8 @@ export default function LiveCollectionsTable({ collections = [] }) {
                     <td className="px-6 py-4 text-sm font-black text-slate-900 text-right whitespace-nowrap">
                       {parseFloat(col.amount).toFixed(2)}
                     </td>
-                    {/* NEW: Edit Action Cell */}
+                    
+                    {/* Edit Action Cell */}
                     <td className="px-4 py-4 whitespace-nowrap text-right">
                       <button
                         onClick={() => handleEditClick(col)}
@@ -87,7 +112,7 @@ export default function LiveCollectionsTable({ collections = [] }) {
         </div>
       </div>
 
-      {/* NEW: Mount the Modal */}
+      {/* Mount the Modal */}
       <EditCollectionModal 
         isOpen={isEditModalOpen} 
         onClose={() => setIsEditModalOpen(false)} 
