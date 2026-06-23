@@ -127,7 +127,9 @@ export default function SalesEntry() {
         expenses: aggregatedSessionData.expenses, 
         sessionIds: selectedSessionIds, 
         denominations: aggregatedSessionData.denominations,
-        netTotal: aggregatedSessionData.netTotal
+        netTotal: aggregatedSessionData.netTotal,
+        // ✅ FIX: Pass the original session date to the backend to preserve historical accuracy
+        date: aggregatedSessionData.masters[0]?.date
       };
 
       const response = await api.post('/api/inflow/verify-bulk', payload);
