@@ -9,6 +9,8 @@ import InflowLogsCard from '../../components/logs/cards/InflowLogsCard';
 import ExpenseLogsCard from '../../components/logs/cards/ExpenseLogsCard';
 import TransferLogsCard from '../../components/logs/cards/TransferLogsCard';
 import PettyCashLogsCard from '../../components/logs/cards/PettyCashLogsCard';
+// ✅ Import the new Daily Denominations Card
+import DailyDenominationsCard from '../../components/logs/cards/DailyDenominationsCard';
 import api from '../../config/api'; 
 
 export default function LogsPage() {
@@ -24,7 +26,7 @@ export default function LogsPage() {
   // State for Export Modal
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  // ✅ New State: Tracks which card is currently maximized (full-screen)
+  // State: Tracks which card is currently maximized (full-screen)
   const [expandedCard, setExpandedCard] = useState(null); // 'inflows', 'expenses', 'transfers', 'pettyCash', or null
 
   // fetchLogs now accepts a date parameter to dynamically switch endpoints
@@ -83,7 +85,7 @@ export default function LogsPage() {
     fetchLogs(date); // Immediately fetch new data when date changes
   };
 
-  // ✅ Function to handle expanding/collapsing a card
+  // Function to handle expanding/collapsing a card
   const handleExpandToggle = (cardName) => {
     if (expandedCard === cardName) {
       setExpandedCard(null); // Collapse if already expanded
@@ -196,64 +198,77 @@ export default function LogsPage() {
         <DailySummaryCards logs={logs} />
       )}
 
-      {/* ✅ Dashboard Grid View for Table Cards */}
-      {/* If expandedCard is set, remove the grid styling so the single card takes up the full space */}
-      <div className={`transition-all duration-500 ${expandedCard ? 'block' : 'grid grid-cols-1 lg:grid-cols-2 gap-6'}`}>
+      {/* ✅ RESTRUCTURED DASHBOARD GRID VIEW */}
+      {/* Splits into 12 columns: 8 for the tables, 4 for the Daily Denominations side-panel */}
+      <div className={`transition-all duration-500 ${expandedCard ? 'block' : 'grid grid-cols-1 lg:grid-cols-12 gap-6'}`}>
         
-        {/* Back Button (Only shows when a card is expanded) */}
-        {expandedCard && (
-          <div className="mb-4 animate-in fade-in slide-in-from-left-4">
-            <button 
-              onClick={() => setExpandedCard(null)}
-              className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300 px-4 py-2 rounded-xl shadow-sm transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back to Dashboard View
-            </button>
+        {/* LEFT COLUMN: The 4 Table Cards */}
+        <div className={`${expandedCard ? 'block' : 'lg:col-span-8 grid grid-cols-1 xl:grid-cols-2 gap-6'}`}>
+          
+          {/* Back Button (Only shows when a card is expanded) */}
+          {expandedCard && (
+            <div className="mb-4 animate-in fade-in slide-in-from-left-4">
+              <button 
+                onClick={() => setExpandedCard(null)}
+                className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300 px-4 py-2 rounded-xl shadow-sm transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Dashboard View
+              </button>
+            </div>
+          )}
+
+          {/* INFLOWS CARD */}
+          {(!expandedCard || expandedCard === 'inflows') && (
+            <InflowLogsCard 
+              inflowsData={inflows} 
+              loading={loading} 
+              isExpanded={expandedCard === 'inflows'}
+              onExpand={() => handleExpandToggle('inflows')} 
+            />
+          )}
+
+          {/* EXPENSES CARD */}
+          {(!expandedCard || expandedCard === 'expenses') && (
+            <ExpenseLogsCard 
+              expensesData={expenses} 
+              loading={loading} 
+              isExpanded={expandedCard === 'expenses'}
+              onExpand={() => handleExpandToggle('expenses')} 
+            />
+          )}
+
+          {/* TRANSFERS CARD */}
+          {(!expandedCard || expandedCard === 'transfers') && (
+            <TransferLogsCard 
+              transfersData={transfers} 
+              loading={loading} 
+              isExpanded={expandedCard === 'transfers'}
+              onExpand={() => handleExpandToggle('transfers')} 
+            />
+          )}
+
+          {/* PETTY CASH CARD */}
+          {(!expandedCard || expandedCard === 'pettyCash') && (
+            <PettyCashLogsCard 
+              pettyCashData={pettyCash} 
+              loading={loading} 
+              isExpanded={expandedCard === 'pettyCash'}
+              onExpand={() => handleExpandToggle('pettyCash')} 
+            />
+          )}
+        </div>
+
+        {/* ✅ RIGHT COLUMN: Daily Denominations Breakdown Sidebar */}
+        {/* This column is entirely hidden if any table is expanded full-screen */}
+        {!expandedCard && (
+          <div className="lg:col-span-4 flex flex-col gap-6">
+            <DailyDenominationsCard selectedDate={selectedDate} />
           </div>
         )}
 
-        {/* ✅ INFLOWS CARD */}
-        {(!expandedCard || expandedCard === 'inflows') && (
-          <InflowLogsCard 
-            inflowsData={inflows} 
-            loading={loading} 
-            isExpanded={expandedCard === 'inflows'}
-            onExpand={() => handleExpandToggle('inflows')} 
-          />
-        )}
-
-        {/* ✅ EXPENSES CARD */}
-        {(!expandedCard || expandedCard === 'expenses') && (
-          <ExpenseLogsCard 
-            expensesData={expenses} 
-            loading={loading} 
-            isExpanded={expandedCard === 'expenses'}
-            onExpand={() => handleExpandToggle('expenses')} 
-          />
-        )}
-
-        {/* ✅ TRANSFERS CARD */}
-        {(!expandedCard || expandedCard === 'transfers') && (
-          <TransferLogsCard 
-            transfersData={transfers} 
-            loading={loading} 
-            isExpanded={expandedCard === 'transfers'}
-            onExpand={() => handleExpandToggle('transfers')} 
-          />
-        )}
-
-        {/* ✅ PETTY CASH CARD */}
-        {(!expandedCard || expandedCard === 'pettyCash') && (
-          <PettyCashLogsCard 
-            pettyCashData={pettyCash} 
-            loading={loading} 
-            isExpanded={expandedCard === 'pettyCash'}
-            onExpand={() => handleExpandToggle('pettyCash')} 
-          />
-        )}
       </div>
 
     </div>
