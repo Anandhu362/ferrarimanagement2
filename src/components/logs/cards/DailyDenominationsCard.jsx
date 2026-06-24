@@ -41,7 +41,7 @@ export default function DailyDenominationsCard({ selectedDate }) {
   // 1. Placeholder State (No date selected)
   if (!selectedDate) {
     return (
-      <div className="bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col items-center justify-center h-full min-h-[350px] text-center">
+      <div className="bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col items-center justify-center min-h-[350px] text-center">
         <div className="bg-slate-50 p-4 rounded-full mb-4">
           <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -56,8 +56,9 @@ export default function DailyDenominationsCard({ selectedDate }) {
   }
 
   // 2. Main Render (Loading or Data)
+  // ✅ FIX: Use 'h-fit' dynamically when data is loaded so the card shrinks to wrap its contents naturally.
   return (
-    <div className="bg-white rounded-[2rem] p-6 lg:p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col h-full min-h-[350px]">
+    <div className={`bg-white rounded-[2rem] p-6 lg:p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col ${loading || denominations.length === 0 ? 'min-h-[350px]' : 'h-fit'}`}>
       
       {/* Header */}
       <div className="mb-6">
@@ -85,7 +86,8 @@ export default function DailyDenominationsCard({ selectedDate }) {
         </div>
       ) : (
         // Data State
-        <div className="flex-1 flex flex-col justify-between">
+        // ✅ FIX: Removed 'flex-1' and 'justify-between' so the elements stack right on top of each other.
+        <div className="flex flex-col mt-2">
           
           <div className="space-y-4">
             {/* Table Headers */}
@@ -119,7 +121,8 @@ export default function DailyDenominationsCard({ selectedDate }) {
           </div>
 
           {/* Grand Total Footer */}
-          <div className="mt-8 pt-5 border-t border-slate-100 flex justify-between items-end">
+          {/* ✅ FIX: Tightened the top margin (mt-6) so it sits directly under the last note */}
+          <div className="mt-6 pt-5 border-t border-slate-100 flex justify-between items-end">
             <div>
               <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Grand Total</span>
             </div>
