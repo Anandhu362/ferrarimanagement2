@@ -2,15 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../config/api';
-
-// ✅ Import the SyncManager hook for offline routing
 import { useSync } from '../../context/SyncManager'; 
 
 export default function AgentDenominationEntry() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ✅ Extract online status and offline queue function
   const { isOnline, queuePayload } = useSync();
 
   // --- Core Session Data ---
@@ -64,18 +61,37 @@ export default function AgentDenominationEntry() {
     }
   }, [denominations, sessionData]);
 
-  // --- Live Calculations ---
+  // --- Live Calculations & Item-Level Ledger Logic ---
+  
+  // 1. Calculate how much cash was already verified at the item level in Step 1
+  const totalPreEnteredItemCash = (sessionData?.collections || []).reduce((total, col) => {
+    let colCash = 0;
+    if (col.itemDenominations) {
+      Object.entries(col.itemDenominations).forEach(([value, count]) => {
+        colCash += parseFloat(value) * (parseInt(count) || 0);
+      });
+    }
+    return total + colCash;
+  }, 0);
+
+  // 2. Determine base targets
+  const netHandoverAmount = sessionData?.financialSummary?.netHandoverAmount || 0;
+  
+  // 3. Pending balance is net handover minus what was already accounted for
+  const pendingBalance = Math.max(0, netHandoverAmount - totalPreEnteredItemCash);
+
+  // 4. Calculate what the user is entering right now on this screen
   const totalEntered = Object.entries(denominations).reduce((sum, [value, count]) => {
     const numericCount = parseInt(count) || 0;
     return sum + (parseFloat(value) * numericCount);
   }, 0);
 
-  const targetAmount = sessionData?.financialSummary?.netHandoverAmount || 0;
-  const isBalanced = totalEntered === targetAmount;
+  // 5. Balance check (using < 0.01 to avoid JS floating point math quirks)
+  const isBalanced = Math.abs(totalEntered - pendingBalance) < 0.01;
   
-  const progressPercentage = targetAmount > 0 
-    ? Math.min((totalEntered / targetAmount) * 100, 100) 
-    : 0;
+  const progressPercentage = pendingBalance > 0 
+    ? Math.min((totalEntered / pendingBalance) * 100, 100) 
+    : (totalEntered === 0 ? 100 : 0); // If pending is 0, they shouldn't enter anything
 
   // --- Input Handlers ---
   const handleDenominationChange = (value, newCount) => {
@@ -125,13 +141,11 @@ export default function AgentDenominationEntry() {
       agentName: sessionData.agentName,
       branchId: sessionData.branchId, 
       financialSummary: sessionData.financialSummary,
-      collections: sessionData.collections,
+      collections: sessionData.collections, // Contains itemDenominations
       expenses: sessionData.expenses,
-      denominations: denominations 
+      denominations: denominations // Contains final pending balance denominations
     };
 
-    // ✅ THE MAGIC OFFLINE ROUTER
-    // If there's no internet, bypass the API call, lock the data in the local queue, and redirect safely.
     if (!isOnline) {
       queuePayload(finalPayload);
       localStorage.removeItem('temp_agent_session_data');
@@ -181,7 +195,6 @@ export default function AgentDenominationEntry() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* ✅ Offline Indicator UI */}
           {!isOnline && (
             <div className="bg-rose-100 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm border border-rose-200">
               <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
@@ -194,22 +207,39 @@ export default function AgentDenominationEntry() {
         </div>
       </div>
 
-      {/* Target vs Entered Highlight Card */}
-      <div className="bg-[#2A2B3D] rounded-3xl p-6 shadow-lg mb-6 text-white grid grid-cols-2 gap-4 divide-x divide-slate-600/50">
-        <div>
-          <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Target Balance</p>
-          <p className="text-2xl font-black tracking-tight text-white">
-            <span className="text-sm text-slate-400 font-medium mr-1">AED</span> 
-            {targetAmount.toFixed(2)}
-          </p>
+      {/* ✅ UPDATED: Financial Summary Split Highlight Card */}
+      <div className="bg-[#2A2B3D] rounded-3xl p-5 shadow-lg mb-6 text-white divide-y divide-slate-600/50">
+        
+        {/* Top row: Net Handover & Already Verified */}
+        <div className="flex justify-between items-center pb-4">
+          <div>
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Net Handover</p>
+            <p className="text-lg font-bold text-white">AED {netHandoverAmount.toFixed(2)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] sm:text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">Pre-Verified Item Notes</p>
+            <p className="text-lg font-bold text-emerald-300">- AED {totalPreEnteredItemCash.toFixed(2)}</p>
+          </div>
         </div>
-        <div className="pl-4">
-          <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Entered Cash</p>
-          <p className={`text-2xl font-black tracking-tight ${isBalanced ? 'text-emerald-400' : 'text-amber-400'}`}>
-            <span className="text-sm text-slate-400 font-medium mr-1">AED</span> 
-            {totalEntered.toFixed(2)}
-          </p>
+        
+        {/* Bottom row: Pending Target vs Entered */}
+        <div className="pt-4 grid grid-cols-2 gap-4 divide-x divide-slate-600/50">
+          <div>
+            <p className="text-[10px] sm:text-xs font-bold text-amber-400 uppercase tracking-widest mb-1">Pending Balance</p>
+            <p className="text-2xl font-black tracking-tight text-white">
+              <span className="text-sm text-slate-400 font-medium mr-1">AED</span> 
+              {pendingBalance.toFixed(2)}
+            </p>
+          </div>
+          <div className="pl-4">
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Entered Now</p>
+            <p className={`text-2xl font-black tracking-tight ${isBalanced ? 'text-emerald-400' : 'text-amber-400'}`}>
+              <span className="text-sm text-slate-400 font-medium mr-1">AED</span> 
+              {totalEntered.toFixed(2)}
+            </p>
+          </div>
         </div>
+
       </div>
 
       {/* Live Progress Bar */}
@@ -228,32 +258,44 @@ export default function AgentDenominationEntry() {
 
       {/* Denomination Grid */}
       <div className="flex-1 bg-white rounded-[2rem] border border-slate-200/60 shadow-sm p-4 sm:p-6 mb-24">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          {denomList.map((val) => (
-            <div key={val} className="flex items-center justify-between p-3 border border-slate-100 bg-slate-50/50 rounded-2xl hover:border-emerald-200 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-8 bg-emerald-100/50 rounded flex items-center justify-center border border-emerald-200/50">
-                  <span className="text-xs font-bold text-emerald-600">💵</span>
-                </div>
-                <span className="font-bold text-slate-700">{val} <span className="text-xs font-semibold text-slate-400">AED</span></span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Count</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={denominations[val]}
-                  onChange={(e) => handleDenominationChange(val, e.target.value)}
-                  onKeyDown={blockInvalidChars}
-                  className="w-20 text-center font-bold text-slate-900 bg-white border border-slate-200 rounded-xl py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-300 shadow-sm"
-                  placeholder="0"
-                />
-              </div>
+        {pendingBalance === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4 border-4 border-emerald-50">
+              <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
             </div>
-          ))}
-        </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-1">All Cash Verified</h3>
+            <p className="text-sm text-slate-500 font-medium max-w-xs mx-auto">
+              Your entire net handover was pre-verified using item-level notes. You are ready to sync.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            {denomList.map((val) => (
+              <div key={val} className="flex items-center justify-between p-3 border border-slate-100 bg-slate-50/50 rounded-2xl hover:border-emerald-200 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-8 bg-emerald-100/50 rounded flex items-center justify-center border border-emerald-200/50">
+                    <span className="text-xs font-bold text-emerald-600">💵</span>
+                  </div>
+                  <span className="font-bold text-slate-700">{val} <span className="text-xs font-semibold text-slate-400">AED</span></span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Count</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={denominations[val]}
+                    onChange={(e) => handleDenominationChange(val, e.target.value)}
+                    onKeyDown={blockInvalidChars}
+                    className="w-20 text-center font-bold text-slate-900 bg-white border border-slate-200 rounded-xl py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-300 shadow-sm"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Floating Action Button (Sticky Bottom) */}
@@ -273,7 +315,7 @@ export default function AgentDenominationEntry() {
             ) : isBalanced ? (
               <>Complete Valid Details to Sync <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg></>
             ) : (
-              `Balance Required: AED ${(targetAmount - totalEntered).toFixed(2)}`
+              `Balance Required: AED ${(pendingBalance - totalEntered).toFixed(2)}`
             )}
           </button>
         </div>

@@ -60,7 +60,7 @@ export default function SalesEntry() {
     });
 
     return () => { unsubCol(); unsubExp(); unsubSess(); };
-  }, []); // Empty dependency array, relies on internal state functions
+  }, []); 
 
   // --- Toggle Multi-Select ---
   const toggleSessionSelection = (sessionId) => {
@@ -86,14 +86,30 @@ export default function SalesEntry() {
     const grossTotal = selectedCollections.reduce((sum, col) => sum + (parseFloat(col.amount) || 0), 0);
     const totalExp = selectedExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
 
-    // Aggregate physical cash denominations across all selected bags
     const aggregatedDenominations = {};
     const denomKeys = [1000, 500, 200, 100, 50, 20, 10, 5, 1, 0.5];
     
+    // Source 1: The Master Session (Now holds 100% of cash for new syncs)
     selectedMasters.forEach(session => {
       if (session.denominations) {
         denomKeys.forEach(key => {
-          const count = parseInt(session.denominations[key]) || 0;
+          const count = parseInt(session.denominations[key], 10) || 0;
+          aggregatedDenominations[key] = (aggregatedDenominations[key] || 0) + count;
+        });
+      }
+    });
+
+    // Source 2: Individual Collections (ONLY for legacy bags submitted before this update)
+    selectedCollections.forEach(col => {
+      const parentSession = selectedMasters.find(s => s.id === col.sessionId);
+      
+      // ✅ Prevent Double Counting! If backend already aggregated it, skip.
+      if (parentSession && parentSession.isCashAggregated) return; 
+
+      const itemNotes = col.itemDenominations || col.denominations;
+      if (itemNotes) {
+        denomKeys.forEach(key => {
+          const count = parseInt(itemNotes[key], 10) || 0;
           aggregatedDenominations[key] = (aggregatedDenominations[key] || 0) + count;
         });
       }
@@ -115,12 +131,10 @@ export default function SalesEntry() {
     if (!aggregatedSessionData || aggregatedSessionData.collections.length === 0) return;
     
     setIsSubmitting(true);
-    // Use branch ID from the first selected master as fallback
     const fallbackBranchId = aggregatedSessionData.masters[0]?.branchId;
     const activeBranch = localStorage.getItem('active_branch') || fallbackBranchId;
 
     try {
-      // Construct the secure payload mapping ALL selected sessions
       const payload = {
         branchId: activeBranch, 
         transactionIds: aggregatedSessionData.collections.map(record => record.id),
@@ -128,7 +142,6 @@ export default function SalesEntry() {
         sessionIds: selectedSessionIds, 
         denominations: aggregatedSessionData.denominations,
         netTotal: aggregatedSessionData.netTotal,
-        // ✅ FIX: Pass the original session date to the backend to preserve historical accuracy
         date: aggregatedSessionData.masters[0]?.date
       };
 
@@ -146,7 +159,6 @@ export default function SalesEntry() {
     }
   };
 
-  // Top Bar global aggregations (Totals across ALL pending queues)
   const globalGrossPending = allPendingCollections.reduce((sum, col) => sum + (parseFloat(col.amount) || 0), 0);
   const pendingCount = allPendingSessions.length;
 
@@ -154,7 +166,6 @@ export default function SalesEntry() {
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans animate-in fade-in duration-500">
       <div className="max-w-[1600px] mx-auto">
         
-        {/* Global Overview Bar */}
         <SalesTopBar 
           grossPendingTotal={globalGrossPending} 
           pendingCount={pendingCount} 
@@ -171,7 +182,6 @@ export default function SalesEntry() {
         ) : (
           <div className="flex flex-col gap-6">
             
-            {/* Session Selection Queue (MULTI-SELECT) */}
             {allPendingSessions.length > 0 ? (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 overflow-x-auto">
                 <div className="flex gap-3 min-w-max">
@@ -206,11 +216,9 @@ export default function SalesEntry() {
               </div>
             )}
 
-            {/* Display Aggregated Active Details */}
             {aggregatedSessionData && selectedSessionIds.length > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-300">
                 
-                {/* Left/Center Column: Data Tables */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
                   <div className="h-[400px]">
                     <LiveCollectionsTable collections={aggregatedSessionData.collections} />
@@ -221,14 +229,11 @@ export default function SalesEntry() {
                   </div>
                 </div>
 
-                {/* Right Column: Physical Cash Verification & Action */}
                 <div className="lg:col-span-1 flex flex-col gap-6">
                   <div className="flex-1 min-h-[500px]">
-                    {/* Passes down the freshly calculated sum of all selected cash */}
                     <DenominationSidebar denominations={aggregatedSessionData.denominations} />
                   </div>
 
-                  {/* Action Card */}
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-4">
                     <div className="flex justify-between items-center text-sm font-bold text-slate-500 uppercase tracking-widest">
                       <span>Net Expected ({selectedSessionIds.length} Bags)</span>

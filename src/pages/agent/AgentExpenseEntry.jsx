@@ -34,6 +34,7 @@ export default function AgentExpenseEntry() {
       const incomingData = {
         clientSessionId: location.state.clientSessionId || `SESSION-REC-${Date.now()}`, 
         totalCollected: location.state.totalCollected,
+        // ✅ VERIFIED PASSTHROUGH: Captures the collections array (including itemDenominations) from Step 1
         collections: location.state.collections || [],
         date: location.state.date,
         agentName: location.state.agentName || localStorage.getItem('agent_name') || 'Agent',
@@ -102,12 +103,14 @@ export default function AgentExpenseEntry() {
     setExpenses(expenses.filter((_, index) => index !== indexToRemove));
   };
 
-  // ✅ NEW: Safe Back Navigation to Dashboard
+  // Safe Back Navigation to Dashboard
   const handleGoBack = () => {
     if (sessionData) {
       // Force an immediate local storage sync before leaving
       const backupData = {
         ...sessionData,
+        // ✅ Explicitly ensure collections pass back to Step 1 safely
+        collections: sessionData.collections,
         expenses: expenses
       };
       localStorage.setItem('temp_agent_session_data', JSON.stringify(backupData));
@@ -125,6 +128,8 @@ export default function AgentExpenseEntry() {
 
     const updatedSessionData = {
       ...sessionData,
+      // ✅ EXPLICIT PASSTHROUGH: Hardcode the collections mapping to guarantee itemDenominations survive the jump to Step 3
+      collections: sessionData.collections,
       financialSummary: {
         totalCollected: sessionData.totalCollected,
         totalExpenses: totalExpenses,
@@ -142,7 +147,7 @@ export default function AgentExpenseEntry() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 font-sans flex flex-col">
-      {/* Header with NEW Back Button */}
+      {/* Header with Back Button */}
       <div className="flex justify-between items-center mb-8 mt-4">
         <div className="flex items-center gap-4">
           <button 

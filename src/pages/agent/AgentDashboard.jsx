@@ -1,15 +1,16 @@
 // frontend/src/pages/agent/AgentDashboard.jsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom'; // ✅ ADDED useLocation
+import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import PremiumCalendar from '../../components/shared/PremiumCalendar';
 import RecentCollections from '../../components/agent/RecentCollections'; 
+import ItemDenominationModal from '../../components/agent/ItemDenominationModal'; // ✅ ADDED
 import { Preferences } from '@capacitor/preferences';
 
 export default function AgentDashboard() {
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ ADDED
+  const location = useLocation();
   
   const [agentName, setAgentName] = useState('Agent');
 
@@ -20,6 +21,9 @@ export default function AgentDashboard() {
   const [currentInvoice, setCurrentInvoice] = useState('');
   const [currentAmount, setCurrentAmount] = useState('');
   const [cartItems, setCartItems] = useState([]);
+  
+  // ✅ NEW: Tracks which list item currently has its notes modal open
+  const [activeDenomIndex, setActiveDenomIndex] = useState(null);
 
   const totalAmount = cartItems.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
 
@@ -28,12 +32,10 @@ export default function AgentDashboard() {
     let attempts = 0;
     let intervalId;
 
-    // ✅ NEW: Recover Cart Items if navigating "Back" from Step 2
     if (location.state && location.state.collections) {
       setCartItems(location.state.collections);
       if (location.state.date) setDate(location.state.date);
     } else {
-      // Fallback: Check local storage for an active uncompleted session
       const recoveredData = localStorage.getItem('temp_agent_session_data');
       if (recoveredData) {
         try {
@@ -49,21 +51,16 @@ export default function AgentDashboard() {
     const loadNativeData = async () => {
       const { value: savedName } = await Preferences.get({ key: 'agent_name' });
       
-      // If we successfully get the real name, update UI and stop checking
       if (savedName && savedName !== 'Agent') {
         setAgentName(savedName);
         clearInterval(intervalId); 
       } else if (attempts > 10) {
-        // Failsafe: stop checking after ~5 seconds to prevent infinite loops
         clearInterval(intervalId);
       }
       attempts++;
     };
 
-    // 1. Check immediately on page load
     loadNativeData();
-
-    // 2. Poll every 500ms
     intervalId = setInterval(loadNativeData, 500);
 
     return () => clearInterval(intervalId);
@@ -91,7 +88,8 @@ export default function AgentDashboard() {
     setCartItems([...cartItems, { 
       companyName: currentCompany, 
       invoiceNumber: currentInvoice && currentInvoice.trim() !== '' ? currentInvoice.trim() : 'NIL',
-      amount: currentAmount 
+      amount: currentAmount,
+      itemDenominations: {} // ✅ NEW: Initialize empty denominations object
     }]);
     
     setCurrentCompany('');
@@ -101,6 +99,15 @@ export default function AgentDashboard() {
 
   const handleRemoveFromCart = (indexToRemove) => {
     setCartItems(cartItems.filter((_, index) => index !== indexToRemove));
+    if (activeDenomIndex === indexToRemove) setActiveDenomIndex(null);
+  };
+
+  // ✅ NEW: Save granular denominations back to the specific cart item
+  const handleSaveItemDenominations = (index, denominations) => {
+    const updatedCart = [...cartItems];
+    updatedCart[index].itemDenominations = denominations;
+    setCartItems(updatedCart);
+    setActiveDenomIndex(null); // Close the modal
   };
 
   // --- Submit Handler ---
@@ -121,7 +128,6 @@ export default function AgentDashboard() {
       return;
     }
 
-    // Check if we already generated a session ID (to prevent generating a new one if they clicked Back)
     let sessionKey = location.state?.clientSessionId;
     if (!sessionKey) {
       const recoveredData = localStorage.getItem('temp_agent_session_data');
@@ -138,7 +144,7 @@ export default function AgentDashboard() {
       state: {
         clientSessionId: uniqueSessionId, 
         totalCollected: totalAmount,
-        collections: cartItems,
+        collections: cartItems, // itemDenominations passes through here
         date: date,
         agentName: currentAgentName,
         branchId: activeBranch
@@ -253,40 +259,74 @@ export default function AgentDashboard() {
             </div>
           </div>
 
+          {/* ✅ UPDATED: Cart Items with Dynamic Modal Toggle */}
           {cartItems.length > 0 && (
-            <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-2 space-y-1 mt-6">
-              {cartItems.map((item, index) => (
-                <div key={index} className="flex justify-between items-center bg-white border border-slate-100 p-3.5 rounded-xl shadow-sm">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">{item.companyName}</span>
-                    <span className="text-sm font-semibold text-slate-900">INV: {item.invoiceNumber}</span>
+            <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-2 space-y-2 mt-6">
+              {cartItems.map((item, index) => {
+                const hasNotes = item.itemDenominations && Object.keys(item.itemDenominations).length > 0;
+                
+                return (
+                  <div key={index} className="flex flex-col bg-white border border-slate-100 p-3.5 rounded-xl shadow-sm transition-all">
+                    <div className="flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">{item.companyName}</span>
+                        <span className="text-sm font-semibold text-slate-900">INV: {item.invoiceNumber}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-slate-900">AED {parseFloat(item.amount).toFixed(2)}</span>
+                        
+                        {/* Toggle Notes Button */}
+                        <button 
+                          type="button"
+                          onClick={() => setActiveDenomIndex(activeDenomIndex === index ? null : index)}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-colors ${
+                            hasNotes 
+                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm' 
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {hasNotes ? 'Notes Verified ✓' : 'Add Notes'}
+                        </button>
+
+                        <button 
+                          type="button"
+                          onClick={() => handleRemoveFromCart(index)}
+                          className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expandable Denomination Modal */}
+                    {activeDenomIndex === index && (
+                      <ItemDenominationModal 
+                        amount={item.amount}
+                        initialDenominations={item.itemDenominations}
+                        onSave={(denominations) => handleSaveItemDenominations(index, denominations)}
+                        onClose={() => setActiveDenomIndex(null)}
+                      />
+                    )}
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-bold text-slate-900">AED {parseFloat(item.amount).toFixed(2)}</span>
-                    <button 
-                      type="button"
-                      onClick={() => handleRemoveFromCart(index)}
-                      className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
+          {/* ✅ UPDATED: Disabled state now blocks submission if a modal is open */}
           <button 
             type="submit"
-            disabled={cartItems.length === 0}
+            disabled={cartItems.length === 0 || activeDenomIndex !== null}
             className="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-slate-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {`Continue to Expenses (AED ${totalAmount.toFixed(2)})`}
+            {activeDenomIndex !== null 
+              ? 'Please Save or Cancel Notes to Continue' 
+              : `Continue to Expenses (AED ${totalAmount.toFixed(2)})`
+            }
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 12h14M12 5l7 7-7 7" /></svg>
           </button>
         </form>
 
-        {/* Recent Collections Component */}
         <div className="mt-8">
           <RecentCollections agentName={agentName} />
         </div>
