@@ -5,7 +5,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import PremiumCalendar from '../../components/shared/PremiumCalendar';
 import RecentCollections from '../../components/agent/RecentCollections'; 
-import ItemDenominationModal from '../../components/agent/ItemDenominationModal'; // ✅ ADDED
+import ItemDenominationModal from '../../components/agent/ItemDenominationModal'; 
 import { Preferences } from '@capacitor/preferences';
 
 export default function AgentDashboard() {
@@ -22,7 +22,6 @@ export default function AgentDashboard() {
   const [currentAmount, setCurrentAmount] = useState('');
   const [cartItems, setCartItems] = useState([]);
   
-  // ✅ NEW: Tracks which list item currently has its notes modal open
   const [activeDenomIndex, setActiveDenomIndex] = useState(null);
 
   const totalAmount = cartItems.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
@@ -89,7 +88,7 @@ export default function AgentDashboard() {
       companyName: currentCompany, 
       invoiceNumber: currentInvoice && currentInvoice.trim() !== '' ? currentInvoice.trim() : 'NIL',
       amount: currentAmount,
-      itemDenominations: {} // ✅ NEW: Initialize empty denominations object
+      itemDenominations: {} 
     }]);
     
     setCurrentCompany('');
@@ -102,12 +101,11 @@ export default function AgentDashboard() {
     if (activeDenomIndex === indexToRemove) setActiveDenomIndex(null);
   };
 
-  // ✅ NEW: Save granular denominations back to the specific cart item
   const handleSaveItemDenominations = (index, denominations) => {
     const updatedCart = [...cartItems];
     updatedCart[index].itemDenominations = denominations;
     setCartItems(updatedCart);
-    setActiveDenomIndex(null); // Close the modal
+    setActiveDenomIndex(null); 
   };
 
   // --- Submit Handler ---
@@ -144,7 +142,7 @@ export default function AgentDashboard() {
       state: {
         clientSessionId: uniqueSessionId, 
         totalCollected: totalAmount,
-        collections: cartItems, // itemDenominations passes through here
+        collections: cartItems, 
         date: date,
         agentName: currentAgentName,
         branchId: activeBranch
@@ -259,7 +257,6 @@ export default function AgentDashboard() {
             </div>
           </div>
 
-          {/* ✅ UPDATED: Cart Items with Dynamic Modal Toggle */}
           {cartItems.length > 0 && (
             <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-2 space-y-2 mt-6">
               {cartItems.map((item, index) => {
@@ -267,19 +264,22 @@ export default function AgentDashboard() {
                 
                 return (
                   <div key={index} className="flex flex-col bg-white border border-slate-100 p-3.5 rounded-xl shadow-sm transition-all">
-                    <div className="flex justify-between items-center">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">{item.companyName}</span>
-                        <span className="text-sm font-semibold text-slate-900">INV: {item.invoiceNumber}</span>
+                    
+                    {/* Responsive container for cart list item */}
+                    <div className="flex flex-wrap items-center justify-between gap-y-3 gap-x-2">
+                      
+                      <div className="flex flex-col min-w-[120px] flex-1 overflow-hidden pr-2">
+                        <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5 truncate">{item.companyName}</span>
+                        <span className="text-sm font-semibold text-slate-900 truncate">INV: {item.invoiceNumber}</span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold text-slate-900">AED {parseFloat(item.amount).toFixed(2)}</span>
+                      
+                      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 mr-1">AED {parseFloat(item.amount).toFixed(2)}</span>
                         
-                        {/* Toggle Notes Button */}
                         <button 
                           type="button"
                           onClick={() => setActiveDenomIndex(activeDenomIndex === index ? null : index)}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-colors ${
+                          className={`px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-colors ${
                             hasNotes 
                               ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm' 
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -291,7 +291,7 @@ export default function AgentDashboard() {
                         <button 
                           type="button"
                           onClick={() => handleRemoveFromCart(index)}
-                          className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
@@ -313,11 +313,10 @@ export default function AgentDashboard() {
             </div>
           )}
 
-          {/* ✅ UPDATED: Disabled state now blocks submission if a modal is open */}
           <button 
             type="submit"
             disabled={cartItems.length === 0 || activeDenomIndex !== null}
-            className="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-slate-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-slate-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             {activeDenomIndex !== null 
               ? 'Please Save or Cancel Notes to Continue' 
