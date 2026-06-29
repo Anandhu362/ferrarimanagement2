@@ -20,17 +20,43 @@ export default function AgentDenominationEntry() {
     50: '', 20: '', 10: '', 5: '', 
     1: '', 0.5: ''
   });
+  
+  // NEW: State to lock in the baseline record from Step 1
+  const [initialPreVerifiedPool, setInitialPreVerifiedPool] = useState({});
 
   // --- Initialization & Fail-Safe Recovery ---
   useEffect(() => {
     const LOCAL_STORAGE_KEY = 'temp_agent_session_data';
 
+    // Helper to calculate the aggregated pool from collection data
+    const calculateAggregatedPool = (data) => {
+      const aggregatedPool = {
+        1000: 0, 500: 0, 200: 0, 100: 0, 
+        50: 0, 20: 0, 10: 0, 5: 0, 1: 0, 0.5: 0
+      };
+      
+      (data.collections || []).forEach(col => {
+        if (col.itemDenominations) {
+          Object.entries(col.itemDenominations).forEach(([denom, qty]) => {
+            aggregatedPool[denom] += (parseInt(qty) || 0);
+          });
+        }
+      });
+      return aggregatedPool;
+    };
+
     if (location.state && location.state.financialSummary) {
       const incomingData = location.state;
       setSessionData(incomingData);
       
+      const pool = calculateAggregatedPool(incomingData);
+      setInitialPreVerifiedPool(pool);
+      
+      // Pre-fill inputs with aggregated pool if no existing denominations exist
       if (incomingData.denominations) {
         setDenominations(incomingData.denominations);
+      } else {
+        setDenominations(pool);
       }
 
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(incomingData));
@@ -40,8 +66,13 @@ export default function AgentDenominationEntry() {
         const parsedData = JSON.parse(recoveredData);
         setSessionData(parsedData);
 
+        const pool = calculateAggregatedPool(parsedData);
+        setInitialPreVerifiedPool(pool);
+
         if (parsedData.denominations) {
           setDenominations(parsedData.denominations);
+        } else {
+          setDenominations(pool);
         }
       } else {
         alert("No active session found. Redirecting to Dashboard.");
@@ -61,37 +92,28 @@ export default function AgentDenominationEntry() {
     }
   }, [denominations, sessionData]);
 
-  // --- Live Calculations & Item-Level Ledger Logic ---
+  // --- Live Calculations ---
   
-  // 1. Calculate how much cash was already verified at the item level in Step 1
-  const totalPreEnteredItemCash = (sessionData?.collections || []).reduce((total, col) => {
-    let colCash = 0;
-    if (col.itemDenominations) {
-      Object.entries(col.itemDenominations).forEach(([value, count]) => {
-        colCash += parseFloat(value) * (parseInt(count) || 0);
-      });
-    }
-    return total + colCash;
-  }, 0);
-
-  // 2. Determine base targets
+  // 1. Determine base target
   const netHandoverAmount = sessionData?.financialSummary?.netHandoverAmount || 0;
   
-  // 3. Pending balance is net handover minus what was already accounted for
-  const pendingBalance = Math.max(0, netHandoverAmount - totalPreEnteredItemCash);
+  // 2. Calculate the value of the locked baseline for UI display purposes
+  const preVerifiedTotal = Object.entries(initialPreVerifiedPool).reduce((sum, [value, count]) => {
+    return sum + (parseFloat(value) * (parseInt(count) || 0));
+  }, 0);
 
-  // 4. Calculate what the user is entering right now on this screen
+  // 3. Calculate what the user has currently entered
   const totalEntered = Object.entries(denominations).reduce((sum, [value, count]) => {
     const numericCount = parseInt(count) || 0;
     return sum + (parseFloat(value) * numericCount);
   }, 0);
 
-  // 5. Balance check (using < 0.01 to avoid JS floating point math quirks)
-  const isBalanced = Math.abs(totalEntered - pendingBalance) < 0.01;
+  // 4. Balance check (comparing against the netHandoverAmount)
+  const isBalanced = Math.abs(totalEntered - netHandoverAmount) < 0.01;
   
-  const progressPercentage = pendingBalance > 0 
-    ? Math.min((totalEntered / pendingBalance) * 100, 100) 
-    : (totalEntered === 0 ? 100 : 0); // If pending is 0, they shouldn't enter anything
+  const progressPercentage = netHandoverAmount > 0 
+    ? Math.min((totalEntered / netHandoverAmount) * 100, 100) 
+    : (totalEntered === 0 ? 100 : 0);
 
   // --- Input Handlers ---
   const handleDenominationChange = (value, newCount) => {
@@ -141,9 +163,10 @@ export default function AgentDenominationEntry() {
       agentName: sessionData.agentName,
       branchId: sessionData.branchId, 
       financialSummary: sessionData.financialSummary,
-      collections: sessionData.collections, // Contains itemDenominations
+      collections: sessionData.collections,
       expenses: sessionData.expenses,
-      denominations: denominations // Contains final pending balance denominations
+      denominations: denominations, 
+      preVerifiedPool: initialPreVerifiedPool // NEW: The locked baseline
     };
 
     if (!isOnline) {
@@ -217,29 +240,28 @@ export default function AgentDenominationEntry() {
             <p className="text-lg font-bold text-white">AED {netHandoverAmount.toFixed(2)}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] sm:text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">Pre-Verified Item Notes</p>
-            <p className="text-lg font-bold text-emerald-300">- AED {totalPreEnteredItemCash.toFixed(2)}</p>
+            <p className="text-[10px] sm:text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">Pre-Verified Pool Value</p>
+            <p className="text-lg font-bold text-emerald-300">AED {preVerifiedTotal.toFixed(2)}</p>
           </div>
         </div>
         
-        {/* Bottom row: Pending Target vs Entered */}
+        {/* Bottom row: Difference vs Entered */}
         <div className="pt-4 grid grid-cols-2 gap-4 divide-x divide-slate-600/50">
           <div>
-            <p className="text-[10px] sm:text-xs font-bold text-amber-400 uppercase tracking-widest mb-1">Pending Balance</p>
+            <p className="text-[10px] sm:text-xs font-bold text-amber-400 uppercase tracking-widest mb-1">Difference</p>
             <p className="text-2xl font-black tracking-tight text-white">
               <span className="text-sm text-slate-400 font-medium mr-1">AED</span> 
-              {pendingBalance.toFixed(2)}
+              {Math.abs(netHandoverAmount - totalEntered).toFixed(2)}
             </p>
           </div>
           <div className="pl-4">
-            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Entered Now</p>
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Entered</p>
             <p className={`text-2xl font-black tracking-tight ${isBalanced ? 'text-emerald-400' : 'text-amber-400'}`}>
               <span className="text-sm text-slate-400 font-medium mr-1">AED</span> 
               {totalEntered.toFixed(2)}
             </p>
           </div>
         </div>
-
       </div>
 
       {/* Live Progress Bar */}
@@ -258,14 +280,14 @@ export default function AgentDenominationEntry() {
 
       {/* Denomination Grid */}
       <div className="flex-1 bg-white rounded-[2rem] border border-slate-200/60 shadow-sm p-4 sm:p-6 mb-24">
-        {pendingBalance === 0 ? (
+        {netHandoverAmount === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4 border-4 border-emerald-50">
               <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
             </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-1">All Cash Verified</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-1">No Cash Expected</h3>
             <p className="text-sm text-slate-500 font-medium max-w-xs mx-auto">
-              Your entire net handover was pre-verified using item-level notes. You are ready to sync.
+              Your net handover for this session is AED 0. You are ready to sync.
             </p>
           </div>
         ) : (
@@ -315,7 +337,7 @@ export default function AgentDenominationEntry() {
             ) : isBalanced ? (
               <>Complete Valid Details to Sync <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg></>
             ) : (
-              `Balance Required: AED ${(pendingBalance - totalEntered).toFixed(2)}`
+              `Difference: AED ${Math.abs(netHandoverAmount - totalEntered).toFixed(2)}`
             )}
           </button>
         </div>

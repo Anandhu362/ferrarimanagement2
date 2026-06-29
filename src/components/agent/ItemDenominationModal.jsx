@@ -115,11 +115,10 @@ export default function ItemDenominationModal({ amount, initialDenominations, on
         <button
           type="button"
           onClick={() => onSave(denominations)}
-          disabled={!isBalanced}
           className={`flex-[2] py-3 px-2 sm:px-4 font-bold text-[10px] sm:text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 sm:gap-2 ${
             isBalanced
               ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20'
-              : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+              : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
           }`}
         >
           {isBalanced ? (
@@ -128,7 +127,7 @@ export default function ItemDenominationModal({ amount, initialDenominations, on
               <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
             </>
           ) : (
-            'Match Exact Amount'
+            'Save Physical Notes'
           )}
         </button>
       </div>
