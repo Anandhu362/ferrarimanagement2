@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 export default function ItemDenominationModal({ amount, initialDenominations, onSave, onClose }) {
   const denomList = [1000, 500, 200, 100, 50, 20, 10, 5, 1, 0.5];
 
-  // Initialize state with existing denominations if editing, otherwise empty
   const [denominations, setDenominations] = useState(() => {
     if (initialDenominations && Object.keys(initialDenominations).length > 0) {
       return { ...initialDenominations };
@@ -13,7 +12,6 @@ export default function ItemDenominationModal({ amount, initialDenominations, on
 
   const [currentSum, setCurrentSum] = useState(0);
 
-  // Live calculation hook
   useEffect(() => {
     const sum = Object.entries(denominations).reduce((acc, [val, count]) => {
       const numCount = parseInt(count) || 0;
@@ -29,7 +27,6 @@ export default function ItemDenominationModal({ amount, initialDenominations, on
     }));
   };
 
-  // Prevent users from typing 'e', '-', or '.' in the integer count fields
   const blockInvalidChars = (e) => {
     if (['e', 'E', '+', '-', '.'].includes(e.key)) {
       e.preventDefault();
@@ -42,94 +39,122 @@ export default function ItemDenominationModal({ amount, initialDenominations, on
   const progressPercentage = Math.min((currentSum / targetAmount) * 100, 100) || 0;
 
   return (
-    // Responsive padding: p-3 on mobile, p-5 on sm screens and up
-    <div className="mt-3 p-3 sm:p-5 bg-white/60 backdrop-blur-2xl border border-slate-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-2xl sm:rounded-[2rem] relative overflow-hidden transition-all duration-300 ease-in-out">
+    // 1. Fixed Backdrop Overlay - Now strictly centered (items-center) with padding (p-4)
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-opacity duration-300"
+      onClick={onClose} // Clicking outside closes the modal
+    >
       
-      {/* Subtle top accent gradient */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500 opacity-80"></div>
+      {/* 2. Modal Container - Now always a centered floating card (rounded-3xl) */}
+      <div 
+        className="w-full max-w-md bg-white rounded-3xl shadow-2xl relative flex flex-col max-h-[90vh] animate-fade-in overflow-hidden"
+        onClick={(e) => e.stopPropagation()} // Prevent clicks inside from closing it
+      >
+        
+        {/* Top Accent Gradient */}
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
 
-      {/* Header & Status Pill - Added flex-wrap and gap to prevent overlap on tiny screens */}
-      <div className="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-5 mt-1">
-        <div>
-          <h4 className="text-sm font-bold text-slate-800 tracking-tight">Verify Item Notes</h4>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
-            Target: AED {targetAmount.toFixed(2)}
-          </p>
-        </div>
-        <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border ${
-          isBalanced 
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
-            : 'bg-amber-50 border-amber-200 text-amber-600'
-        } text-[10px] sm:text-xs font-bold shadow-sm transition-colors`}>
-          {isBalanced ? 'Amount Matched' : `Pending: AED ${remaining.toFixed(2)}`}
-        </div>
-      </div>
+        {/* 3. Header Section (Sticky) */}
+        <div className="p-5 sm:p-6 border-b border-slate-100 flex-shrink-0 mt-1 relative">
+          
+          {/* NEW: Close Icon (X) */}
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
 
-      {/* Dynamic Progress Bar */}
-      <div className="w-full bg-slate-200/60 rounded-full h-1.5 mb-5 sm:mb-6 overflow-hidden shadow-inner">
-        <div
-          className={`h-full rounded-full transition-all duration-300 ease-out ${isBalanced ? 'bg-emerald-500' : 'bg-amber-400'}`}
-          style={{ width: `${progressPercentage}%` }}
-        ></div>
-      </div>
-
-      {/* Note Grid - Reduced gap on mobile */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-5 sm:mb-6">
-        {denomList.map((val) => (
-          // Reduced inner padding (p-1.5) on mobile to prevent overflow
-          <div key={val} className="flex items-center justify-between p-1.5 sm:p-3 bg-white border border-slate-100 rounded-xl sm:rounded-2xl hover:border-emerald-200/50 hover:shadow-sm transition-all group">
-            <div className="flex items-center gap-1 sm:gap-3 flex-1">
-              {/* Scaled down icon box for mobile */}
-              <div className="w-6 h-5 sm:w-9 sm:h-7 bg-slate-50 rounded flex-shrink-0 flex items-center justify-center border border-slate-100 group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-colors">
-                <span className="text-[8px] sm:text-xs font-bold text-emerald-600">💵</span>
-              </div>
-              <span className="font-bold text-slate-700 text-xs sm:text-sm truncate pr-1">{val}</span>
+          {/* Header Content - Added pr-8 to prevent text from overlapping the X button */}
+          <div className="flex justify-between items-start gap-2 pr-8">
+            <div>
+              <h4 className="text-lg font-bold text-slate-800 tracking-tight mb-1">Verify Item Notes</h4>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                Target: AED {targetAmount.toFixed(2)}
+              </p>
             </div>
-
-            <div className="flex items-center shrink-0">
-              {/* Reduced input width (w-11) and padding on mobile */}
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={denominations[val] || ''}
-                onChange={(e) => handleCountChange(val, e.target.value)}
-                onKeyDown={blockInvalidChars}
-                className="w-11 sm:w-16 text-center font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl py-1 sm:py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-300 text-[10px] sm:text-sm"
-                placeholder="0"
-              />
+            
+            <div className={`px-3 py-1.5 rounded-xl border ${
+              isBalanced 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
+                : 'bg-amber-50 border-amber-200 text-amber-600'
+            } text-xs font-bold shadow-sm text-center`}>
+              {isBalanced ? 'Matched' : `Pending:\nAED ${remaining.toFixed(2)}`}
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2 sm:gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-1 py-3 px-2 sm:px-4 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700 font-bold text-[10px] sm:text-sm rounded-xl border border-slate-200 transition-colors shadow-sm"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => onSave(denominations)}
-          className={`flex-[2] py-3 px-2 sm:px-4 font-bold text-[10px] sm:text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 sm:gap-2 ${
-            isBalanced
-              ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20'
-              : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
-          }`}
-        >
-          {isBalanced ? (
-            <>
-              Lock Notes
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-            </>
-          ) : (
-            'Save Physical Notes'
-          )}
-        </button>
+          {/* Progress Bar */}
+          <div className="w-full bg-slate-100 rounded-full h-2 mt-5 overflow-hidden shadow-inner">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ease-out ${isBalanced ? 'bg-emerald-500' : 'bg-amber-400'}`}
+              style={{ width: `${progressPercentage}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* 4. Scrollable Body Section */}
+        <div className="p-5 sm:p-6 overflow-y-auto flex-1 bg-slate-50/30">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {denomList.map((val) => (
+              <div key={val} className="flex items-center justify-between p-2 sm:p-3 bg-white border border-slate-200/60 rounded-2xl hover:border-emerald-300 transition-all shadow-sm">
+                
+                <div className="flex items-center gap-2 sm:gap-3 flex-1">
+                  <div className="w-8 h-7 sm:w-10 sm:h-8 bg-emerald-50 rounded-lg flex items-center justify-center border border-emerald-100">
+                    <span className="text-xs sm:text-sm">💵</span>
+                  </div>
+                  <span className="font-bold text-slate-700 text-sm sm:text-base">{val}</span>
+                </div>
+
+                <div className="flex items-center shrink-0">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={denominations[val] || ''}
+                    onChange={(e) => handleCountChange(val, e.target.value)}
+                    onKeyDown={blockInvalidChars}
+                    className="w-14 sm:w-16 text-center font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl py-1.5 sm:py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-300 text-base shadow-inner"
+                    placeholder="0"
+                  />
+                </div>
+
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 5. Footer / Actions Section (Sticky) */}
+        <div className="p-4 sm:p-6 border-t border-slate-100 bg-white flex-shrink-0 rounded-b-3xl flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3.5 px-4 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-sm sm:text-base rounded-xl border border-slate-200 transition-colors shadow-sm"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave(denominations)}
+            className={`flex-[2] py-3.5 px-4 font-bold text-sm sm:text-base rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 ${
+              isBalanced
+                ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20'
+                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
+            }`}
+          >
+            {isBalanced ? (
+              <>
+                Lock Notes
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              </>
+            ) : (
+              'Save Physical Notes'
+            )}
+          </button>
+        </div>
+
       </div>
     </div>
   );
