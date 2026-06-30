@@ -24,6 +24,7 @@ import PettyCashManager from './pages/petty-cash/PettyCashManager';
 import LogsPage from './pages/logs/LogsPage'; 
 import ExchangePage from './pages/exchange/ExchangePage'; 
 import AccountantVault from './pages/vault/AccountantVault';
+import SettingsPage from './pages/settings/SettingsPage'; // ✅ NEW: Import SettingsPage
 
 // Operations pages
 import SalesEntry from './pages/sales/SalesEntry'; 
@@ -107,6 +108,9 @@ function App() {
             <Route path="/logs" element={<LogsPage />} /> 
             <Route path="/exchange" element={<ExchangePage />} /> 
             <Route path="/accountant-vault" element={<AccountantVault />} />
+            
+            {/* ✅ NEW: Settings route added to the protected layout */}
+            <Route path="/settings" element={<SettingsPage />} /> 
           </Route>
 
           {/* Fallback route for unmatched paths */}
