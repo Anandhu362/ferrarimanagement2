@@ -1,6 +1,7 @@
 // frontend/src/components/logs/cards/DailyDenominationsCard.jsx
 import React, { useState, useEffect } from 'react';
-import api from '../../../config/api';
+import { doc, getDoc } from 'firebase/firestore'; 
+import { db } from '../../../config/firebase'; // Double check this path matches your project structure
 
 export default function DailyDenominationsCard({ selectedDate }) {
   const [denominations, setDenominations] = useState([]);
@@ -19,14 +20,53 @@ export default function DailyDenominationsCard({ selectedDate }) {
       setLoading(true);
       try {
         const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
-        // Extract just the YYYY-MM-DD format if a full ISO string was passed
-        const formattedDate = selectedDate.split('T')[0]; 
         
-        const response = await api.get(`/api/vault/daily-denominations?branchId=${encodeURIComponent(activeBranch)}&date=${formattedDate}`);
+        // 1. BULLETPROOF DATE FORMATTING: Ensures strict "YYYY-MM-DD" matching
+        const dateObj = new Date(selectedDate);
+        const formattedDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+        
+        // Point directly to the master daily_denominations document in Firestore
+        const docRef = doc(db, 'branches', activeBranch, 'daily_denominations', formattedDate);
+        const docSnap = await getDoc(docRef);
 
-        if (response.data.success) {
-          setDenominations(response.data.data);
-          setGrandTotal(response.data.grandTotal || 0);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          let total = 0;
+          const formattedBreakdown = [];
+          
+          // 2. THE FIX: Loop through ALL keys and catch the literal "notes.X" strings
+          Object.entries(data).forEach(([key, qty]) => {
+            if (key.startsWith('notes.')) {
+              // Extract the denomination part (e.g., "1000" from "notes.1000")
+              const noteValue = key.replace('notes.', '');
+              
+              const numericNote = noteValue === 'Coins' ? 1 : parseFloat(noteValue);
+              const numericQty = parseInt(qty, 10);
+              const rowTotal = numericNote * numericQty;
+              
+              total += rowTotal;
+
+              formattedBreakdown.push({
+                denomination: noteValue === 'Coins' ? 'Coins' : `${numericNote} AED`, 
+                quantity: numericQty,
+                totalValue: rowTotal
+              });
+            }
+          });
+
+          // 3. Sort highest denominations first
+          formattedBreakdown.sort((a, b) => {
+            const valA = a.denomination === 'Coins' ? 1 : parseFloat(a.denomination);
+            const valB = b.denomination === 'Coins' ? 1 : parseFloat(b.denomination);
+            return valB - valA;
+          });
+
+          setDenominations(formattedBreakdown);
+          setGrandTotal(total);
+        } else {
+          // If the document doesn't exist for this day, reset the state
+          setDenominations([]);
+          setGrandTotal(0);
         }
       } catch (error) {
         console.error("Error fetching daily denominations:", error);
@@ -56,7 +96,6 @@ export default function DailyDenominationsCard({ selectedDate }) {
   }
 
   // 2. Main Render (Loading or Data)
-  // ✅ FIX: Use 'h-fit' dynamically when data is loaded so the card shrinks to wrap its contents naturally.
   return (
     <div className={`bg-white rounded-[2rem] p-6 lg:p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col ${loading || denominations.length === 0 ? 'min-h-[350px]' : 'h-fit'}`}>
       
@@ -86,7 +125,6 @@ export default function DailyDenominationsCard({ selectedDate }) {
         </div>
       ) : (
         // Data State
-        // ✅ FIX: Removed 'flex-1' and 'justify-between' so the elements stack right on top of each other.
         <div className="flex flex-col mt-2">
           
           <div className="space-y-4">
@@ -121,7 +159,6 @@ export default function DailyDenominationsCard({ selectedDate }) {
           </div>
 
           {/* Grand Total Footer */}
-          {/* ✅ FIX: Tightened the top margin (mt-6) so it sits directly under the last note */}
           <div className="mt-6 pt-5 border-t border-slate-100 flex justify-between items-end">
             <div>
               <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Grand Total</span>
