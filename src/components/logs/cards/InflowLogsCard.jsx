@@ -1,17 +1,41 @@
 // frontend/src/components/logs/cards/InflowLogsCard.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExpand }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false); 
 
-  // Reset selection when data changes or modal state changes
+  // Filter data dynamically based on search query
+  const filteredData = useMemo(() => {
+    if (!inflowsData) return [];
+    if (!searchQuery.trim()) return inflowsData;
+
+    const lowerQuery = searchQuery.toLowerCase();
+    return inflowsData.filter(trx => {
+      // Check description (Company Name)
+      const descMatch = (trx.description || '').toLowerCase().includes(lowerQuery);
+      // Check amount
+      const amountMatch = String(trx.amount || '').includes(lowerQuery);
+      
+      return descMatch || amountMatch;
+    });
+  }, [inflowsData, searchQuery]);
+
+  // Clear search query when the card is collapsed
+  useEffect(() => {
+    if (!isExpanded) {
+      setSearchQuery('');
+    }
+  }, [isExpanded]);
+
+  // Reset selection when filtered data changes or modal state changes
   useEffect(() => {
     setSelectedIndex(-1);
-  }, [inflowsData, isExpanded]);
+  }, [filteredData, isExpanded]);
 
   // Auto-scroll to keep the selected row in view
   useEffect(() => {
@@ -23,14 +47,14 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
     }
   }, [selectedIndex]);
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation (now using filteredData)
   const handleKeyDown = (e) => {
-    if (!inflowsData || inflowsData.length === 0) return;
+    if (!filteredData || filteredData.length === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault(); // Prevent page scrolling
       isKeyboardNav.current = true; // Lock mouse hover
-      setSelectedIndex((prev) => Math.min(prev + 1, inflowsData.length - 1));
+      setSelectedIndex((prev) => Math.min(prev + 1, filteredData.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       isKeyboardNav.current = true; // Lock mouse hover
@@ -38,7 +62,7 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
     }
   };
 
-  // Re-enable mouse selection ONLY if the physical mouse moves (ignores scroll-induced mousemoves)
+  // Re-enable mouse selection ONLY if the physical mouse moves
   const handleMouseMove = (e) => {
     if (Math.abs(e.movementX) > 0 || Math.abs(e.movementY) > 0) {
       isKeyboardNav.current = false;
@@ -101,11 +125,31 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
             <p className="text-emerald-100 text-xs font-medium">All revenue and incoming cash</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 relative z-10">
-          <div className="bg-white/20 px-4 py-1.5 rounded-full backdrop-blur-sm">
-            <span className="text-white text-xs font-bold">{inflowsData?.length || 0} Records</span>
+        
+        {/* Updated Header Actions with Conditional Search Bar */}
+        <div className="flex items-center gap-2 sm:gap-3 relative z-10">
+          
+          {/* ONLY SHOW SEARCH WHEN EXPANDED */}
+          {isExpanded && (
+            <div className="relative animate-in fade-in zoom-in-95 duration-200">
+              <input
+                type="text"
+                placeholder="Search name or amount..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-white/20 text-white placeholder:text-white/70 border border-white/20 rounded-full pl-4 pr-9 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-white/50 w-40 sm:w-64 transition-all backdrop-blur-sm"
+              />
+              <svg className="w-3.5 h-3.5 text-white/80 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          )}
+
+          <div className="bg-white/20 px-3 sm:px-4 py-1.5 rounded-full backdrop-blur-sm whitespace-nowrap">
+            <span className="text-white text-[10px] sm:text-xs font-bold">{filteredData.length} Records</span>
           </div>
-          <button onClick={onExpand} className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-colors text-white">
+          
+          <button onClick={onExpand} className="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-colors text-white shrink-0">
             {isExpanded ? (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 9V5m0 4H5m4 0l-5-5m11 5V5m0 4h4m-4 0l5-5M9 15v4m0-4H5m4 0l5 5m11-5v4m0-4h4m-4 0l5 5" /></svg>
             ) : (
@@ -115,7 +159,7 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
         </div>
       </div>
 
-      {/* Scrollable Table Content with Mouse Move Listener */}
+      {/* Scrollable Table Content */}
       <div 
         ref={containerRef}
         tabIndex={0} 
@@ -142,19 +186,21 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/80 text-sm">
-              {!inflowsData || inflowsData.length === 0 ? (
+              {/* Check against filteredData instead of inflowsData */}
+              {!filteredData || filteredData.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                       </svg>
-                      <span>No inflow records found for this period.</span>
+                      <span>{searchQuery ? 'No matching records found.' : 'No inflow records found for this period.'}</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                inflowsData.map((trx, index) => {
+                // Map over filteredData
+                filteredData.map((trx, index) => {
                   const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
                   const { dot, text, prefix } = getTrxColors(trx.type);
                   const isSelected = index === selectedIndex;
