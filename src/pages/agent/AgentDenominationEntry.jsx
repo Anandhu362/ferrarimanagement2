@@ -108,8 +108,9 @@ export default function AgentDenominationEntry() {
     return sum + (parseFloat(value) * numericCount);
   }, 0);
 
-  // 4. Balance check (comparing against the netHandoverAmount)
+  // 4. Balance checks 
   const isBalanced = Math.abs(totalEntered - netHandoverAmount) < 0.01;
+  const isShortage = totalEntered < (netHandoverAmount - 0.01); // Detects if entered is strictly less than target
   
   const progressPercentage = netHandoverAmount > 0 
     ? Math.min((totalEntered / netHandoverAmount) * 100, 100) 
@@ -153,7 +154,8 @@ export default function AgentDenominationEntry() {
 
   // --- Final Submission API Call ---
   const handleSubmitFinal = async () => {
-    if (!isBalanced) return; 
+    // Re-introduce a hard block specifically for shortages
+    if (isShortage) return; 
     
     setIsSubmitting(true);
 
@@ -166,7 +168,7 @@ export default function AgentDenominationEntry() {
       collections: sessionData.collections,
       expenses: sessionData.expenses,
       denominations: denominations, 
-      preVerifiedPool: initialPreVerifiedPool // NEW: The locked baseline
+      preVerifiedPool: initialPreVerifiedPool // The locked baseline
     };
 
     if (!isOnline) {
@@ -230,7 +232,7 @@ export default function AgentDenominationEntry() {
         </div>
       </div>
 
-      {/* ✅ UPDATED: Financial Summary Split Highlight Card */}
+      {/* Financial Summary Split Highlight Card */}
       <div className="bg-[#2A2B3D] rounded-3xl p-5 shadow-lg mb-6 text-white divide-y divide-slate-600/50">
         
         {/* Top row: Net Handover & Already Verified */}
@@ -256,7 +258,7 @@ export default function AgentDenominationEntry() {
           </div>
           <div className="pl-4">
             <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Entered</p>
-            <p className={`text-2xl font-black tracking-tight ${isBalanced ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <p className={`text-2xl font-black tracking-tight ${isBalanced ? 'text-emerald-400' : isShortage ? 'text-rose-400' : 'text-amber-400'}`}>
               <span className="text-sm text-slate-400 font-medium mr-1">AED</span> 
               {totalEntered.toFixed(2)}
             </p>
@@ -272,7 +274,7 @@ export default function AgentDenominationEntry() {
         </div>
         <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner">
           <div 
-            className={`h-full rounded-full transition-all duration-300 ease-out ${isBalanced ? 'bg-emerald-500' : 'bg-amber-400'}`}
+            className={`h-full rounded-full transition-all duration-300 ease-out ${isBalanced ? 'bg-emerald-500' : isShortage ? 'bg-rose-500' : 'bg-amber-400'}`}
             style={{ width: `${progressPercentage}%` }}
           ></div>
         </div>
@@ -320,24 +322,28 @@ export default function AgentDenominationEntry() {
         )}
       </div>
 
-      {/* Floating Action Button (Sticky Bottom) */}
+      {/* Floating Action Button (Sticky Bottom) - RESTRICTED SHORTAGES */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent pt-12 z-50">
         <div className="max-w-md mx-auto">
           <button 
             onClick={handleSubmitFinal}
-            disabled={!isBalanced || isSubmitting}
+            disabled={isShortage || isSubmitting} 
             className={`w-full py-4 px-4 rounded-2xl shadow-lg font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${
-              isBalanced 
-                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30' 
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+              isShortage 
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                : isBalanced 
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30' 
+                  : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/30'
             }`}
           >
             {isSubmitting ? (
               'Processing...'
+            ) : isShortage ? (
+              <>Shortage: AED {Math.abs(netHandoverAmount - totalEntered).toFixed(2)} (Not Allowed)</>
             ) : isBalanced ? (
-              <>Complete Valid Details to Sync <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg></>
+              <>Sync Balanced Session <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg></>
             ) : (
-              `Difference: AED ${Math.abs(netHandoverAmount - totalEntered).toFixed(2)}`
+              <>Sync with Overage (AED {Math.abs(netHandoverAmount - totalEntered).toFixed(2)}) <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg></>
             )}
           </button>
         </div>
