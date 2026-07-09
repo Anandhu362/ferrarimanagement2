@@ -1,6 +1,7 @@
 // frontend/src/pages/vault/VaultOverview.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api'; // ✅ IMPORTING YOUR CENTRAL API
+import ReserveVaultCard from '../../components/vault/ReserveVaultCard'; // ✅ Imported Reserve Vault Component
 
 // The baseline structure we always want to show, even if quantity is 0
 const DENOMINATION_TIERS = [
@@ -26,7 +27,7 @@ export default function VaultOverview() {
         // Grab the active branch to ensure we don't fetch global sums
         const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
         
-        // ✅ FIX: Added &vaultType=ceo to fetch data from the CEO Vault table
+        // ✅ Fetches data from the CEO Vault table
         const response = await api.get(`/api/vault/summary?branchId=${encodeURIComponent(activeBranch)}&vaultType=ceo`);
         const result = response.data; // Axios automatically parses JSON
 
@@ -195,6 +196,12 @@ export default function VaultOverview() {
         </div>
 
       </div>
+
+      {/* ✅ NEW: Reserve Vault Float Container added as a secondary section below the main view */}
+      <div className="mt-8">
+        <ReserveVaultCard />
+      </div>
+
     </div>
   );
 }

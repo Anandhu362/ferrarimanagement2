@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../config/api'; 
 import DenominationColumn from '../../components/exchange/DenominationColumn';
+import ReserveExchangeForm from '../../components/exchange/ReserveExchangeForm'; // ✅ Imported Reserve Component
 
 const DENOMINATIONS = [
   { label: '1000', value: 1000, isNote: true },
@@ -373,6 +374,20 @@ export default function ExchangePage() {
             vaultStock={vaultStock}
           />
 
+        </div>
+      </div>
+
+      {/* ✅ UPDATED: Reserve Float Exchange Section (Left-Aligned Grid Layout) */}
+      <div className="mt-12 pt-6 border-t border-slate-200/60">
+        <div className="flex items-center gap-4 mb-6">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Specialized Operations</span>
+        </div>
+        
+        {/* We place it in a grid column matching the left column width (5 out of 12) to align it beautifully to the side */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-6 xl:col-span-5">
+            <ReserveExchangeForm onTransactionSuccess={() => setRefreshKey(old => old + 1)} />
+          </div>
         </div>
       </div>
 
