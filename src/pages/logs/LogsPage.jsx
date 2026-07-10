@@ -4,18 +4,27 @@ import { useNavigate } from 'react-router-dom';
 import PremiumCalendar from '../../components/shared/PremiumCalendar';
 import DailySummaryCards from '../../components/logs/DailySummaryCards';
 import ExportLedgerModal from '../../components/logs/ExportLedgerModal';
-// The 4 categorized table cards
+
+// The categorized table cards
 import InflowLogsCard from '../../components/logs/cards/InflowLogsCard';
 import ExpenseLogsCard from '../../components/logs/cards/ExpenseLogsCard';
 import TransferLogsCard from '../../components/logs/cards/TransferLogsCard';
 import PettyCashLogsCard from '../../components/logs/cards/PettyCashLogsCard';
-// ✅ Import the new Daily Denominations Card
 import DailyDenominationsCard from '../../components/logs/cards/DailyDenominationsCard';
+
+// ✅ NEW: Import the Reserve Logs Card
+import ReserveLogsCard from '../../components/logs/cards/ReserveLogsCard';
 import api from '../../config/api'; 
 
 export default function LogsPage() {
+  // Main Ledger State
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ NEW: Dedicated state for Reserve Vault activity
+  const [reserveLogs, setReserveLogs] = useState([]);
+  const [reserveLoading, setReserveLoading] = useState(true);
+
   const [branchError, setBranchError] = useState(false); 
   const navigate = useNavigate();
   
@@ -27,11 +36,13 @@ export default function LogsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // State: Tracks which card is currently maximized (full-screen)
-  const [expandedCard, setExpandedCard] = useState(null); // 'inflows', 'expenses', 'transfers', 'pettyCash', or null
+  const [expandedCard, setExpandedCard] = useState(null); 
 
-  // fetchLogs now accepts a date parameter to dynamically switch endpoints
+  // fetchLogs now runs parallel API calls to fetch both the master ledger and the isolated reserve ledger
   const fetchLogs = async (dateToFetch = selectedDate) => {
     setLoading(true);
+    setReserveLoading(true);
+
     try {
       const activeBranch = localStorage.getItem('active_branch');
       
@@ -39,39 +50,51 @@ export default function LogsPage() {
       if (!activeBranch) {
         setBranchError(true);
         setLoading(false);
+        setReserveLoading(false);
         return;
       }
       
-      // Dynamic API Endpoint switching using centralized Axios instance
-      let endpoint = `/api/logs/all?branchId=${encodeURIComponent(activeBranch)}`;
+      // Dynamic API Endpoints
+      let mainEndpoint = `/api/logs/all?branchId=${encodeURIComponent(activeBranch)}`;
+      let reserveEndpoint = `/api/logs/reserve?branchId=${encodeURIComponent(activeBranch)}`;
+
       if (dateToFetch) {
-        endpoint = `/api/logs/daily?branchId=${encodeURIComponent(activeBranch)}&date=${dateToFetch}`;
+        mainEndpoint = `/api/logs/daily?branchId=${encodeURIComponent(activeBranch)}&date=${dateToFetch}`;
+        reserveEndpoint += `&date=${dateToFetch}`;
       }
       
-      const response = await api.get(endpoint);
-      const result = response.data; 
+      // Execute both requests concurrently for maximum speed
+      const [mainResponse, reserveResponse] = await Promise.all([
+        api.get(mainEndpoint),
+        api.get(reserveEndpoint)
+      ]);
       
-      if (result.success) {
-        // Sort by the true epoch timestamp hidden in the Transaction ID
-        const sortedLogs = result.data.sort((a, b) => {
+      // 1. Process Main Logs
+      if (mainResponse.data.success) {
+        const sortedLogs = mainResponse.data.data.sort((a, b) => {
           const timeA = parseInt(String(a.id).split('-')[1]) || 0;
           const timeB = parseInt(String(b.id).split('-')[1]) || 0;
           
           if (timeA > 0 && timeB > 0) {
-              return timeB - timeA; // Descending (Newest first)
+              return timeB - timeA; 
           }
-          // Fallback
           const dateA = new Date(a.createdAt || a.created_at);
           const dateB = new Date(b.createdAt || b.created_at);
           return dateB - dateA; 
         });
-        
         setLogs(sortedLogs);
       }
+
+      // 2. Process Reserve Logs
+      if (reserveResponse.data.success) {
+        setReserveLogs(reserveResponse.data.data);
+      }
+
     } catch (error) {
       console.error("Error fetching logs:", error);
     } finally {
       setLoading(false);
+      setReserveLoading(false);
     }
   };
 
@@ -82,15 +105,14 @@ export default function LogsPage() {
 
   const handleDateSelect = (date) => {
     setSelectedDate(date);
-    fetchLogs(date); // Immediately fetch new data when date changes
+    fetchLogs(date); // Immediately fetch new data for both tables when date changes
   };
 
-  // Function to handle expanding/collapsing a card
   const handleExpandToggle = (cardName) => {
     if (expandedCard === cardName) {
-      setExpandedCard(null); // Collapse if already expanded
+      setExpandedCard(null); 
     } else {
-      setExpandedCard(cardName); // Expand the clicked card
+      setExpandedCard(cardName); 
     }
   };
 
@@ -131,7 +153,7 @@ export default function LogsPage() {
           </p>
         </div>
         
-        {/* Filter, Export & Refresh Actions (Hidden if a card is expanded to save space) */}
+        {/* Filter, Export & Refresh Actions */}
         {!expandedCard && (
           <div className="flex items-center gap-3">
             
@@ -198,11 +220,10 @@ export default function LogsPage() {
         <DailySummaryCards logs={logs} />
       )}
 
-      {/* ✅ RESTRUCTURED DASHBOARD GRID VIEW */}
-      {/* Splits into 12 columns: 8 for the tables, 4 for the Daily Denominations side-panel */}
+      {/* RESTRUCTURED DASHBOARD GRID VIEW */}
       <div className={`transition-all duration-500 ${expandedCard ? 'block' : 'grid grid-cols-1 lg:grid-cols-12 gap-6'}`}>
         
-        {/* LEFT COLUMN: The 4 Table Cards */}
+        {/* LEFT COLUMN: The Table Cards */}
         <div className={`${expandedCard ? 'block' : 'lg:col-span-8 grid grid-cols-1 xl:grid-cols-2 gap-6'}`}>
           
           {/* Back Button (Only shows when a card is expanded) */}
@@ -220,7 +241,6 @@ export default function LogsPage() {
             </div>
           )}
 
-          {/* INFLOWS CARD */}
           {(!expandedCard || expandedCard === 'inflows') && (
             <InflowLogsCard 
               inflowsData={inflows} 
@@ -230,7 +250,6 @@ export default function LogsPage() {
             />
           )}
 
-          {/* EXPENSES CARD */}
           {(!expandedCard || expandedCard === 'expenses') && (
             <ExpenseLogsCard 
               expensesData={expenses} 
@@ -240,7 +259,6 @@ export default function LogsPage() {
             />
           )}
 
-          {/* TRANSFERS CARD */}
           {(!expandedCard || expandedCard === 'transfers') && (
             <TransferLogsCard 
               transfersData={transfers} 
@@ -250,7 +268,6 @@ export default function LogsPage() {
             />
           )}
 
-          {/* PETTY CASH CARD */}
           {(!expandedCard || expandedCard === 'pettyCash') && (
             <PettyCashLogsCard 
               pettyCashData={pettyCash} 
@@ -259,10 +276,19 @@ export default function LogsPage() {
               onExpand={() => handleExpandToggle('pettyCash')} 
             />
           )}
+
+          {/* ✅ NEW: Reserve Logs Card securely placed spanning both columns at the bottom of the grid block */}
+          {!expandedCard && (
+            <div className="xl:col-span-2 pt-4">
+              <ReserveLogsCard 
+                logs={reserveLogs} 
+                loading={reserveLoading} 
+              />
+            </div>
+          )}
         </div>
 
-        {/* ✅ RIGHT COLUMN: Daily Denominations Breakdown Sidebar */}
-        {/* This column is entirely hidden if any table is expanded full-screen */}
+        {/* RIGHT COLUMN: Daily Denominations Breakdown Sidebar */}
         {!expandedCard && (
           <div className="lg:col-span-4 flex flex-col gap-6">
             <DailyDenominationsCard selectedDate={selectedDate} />
@@ -270,7 +296,6 @@ export default function LogsPage() {
         )}
 
       </div>
-
     </div>
   );
 }
