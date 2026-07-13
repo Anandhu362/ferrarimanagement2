@@ -36,7 +36,7 @@ export default function SalesEntry() {
       
       // Smart Auto-Selection Logic
       setSelectedSessionIds(prev => {
-        // Remove any selected IDs that are no longer in the pending queue (e.g., just vaulted)
+        // Remove any selected IDs that are no longer in the pending queue
         const validIds = prev.filter(id => sessions.some(s => s.id === id));
         // If nothing is selected but bags exist, auto-select the oldest one
         if (validIds.length === 0 && sessions.length > 0) {
@@ -66,9 +66,9 @@ export default function SalesEntry() {
   const toggleSessionSelection = (sessionId) => {
     setSelectedSessionIds(prev => {
       if (prev.includes(sessionId)) {
-        return prev.filter(id => id !== sessionId); // Deselect
+        return prev.filter(id => id !== sessionId); 
       } else {
-        return [...prev, sessionId]; // Select
+        return [...prev, sessionId]; 
       }
     });
   };
@@ -89,7 +89,7 @@ export default function SalesEntry() {
     const aggregatedDenominations = {};
     const denomKeys = [1000, 500, 200, 100, 50, 20, 10, 5, 1, 0.5];
     
-    // Source 1: The Master Session (Now holds 100% of cash for new syncs)
+    // Source 1: The Master Session
     selectedMasters.forEach(session => {
       if (session.denominations) {
         denomKeys.forEach(key => {
@@ -99,11 +99,10 @@ export default function SalesEntry() {
       }
     });
 
-    // Source 2: Individual Collections (ONLY for legacy bags submitted before this update)
+    // Source 2: Individual Collections
     selectedCollections.forEach(col => {
       const parentSession = selectedMasters.find(s => s.id === col.sessionId);
       
-      // ✅ Prevent Double Counting! If backend already aggregated it, skip.
       if (parentSession && parentSession.isCashAggregated) return; 
 
       const itemNotes = col.itemDenominations || col.denominations;
@@ -134,6 +133,13 @@ export default function SalesEntry() {
     const fallbackBranchId = aggregatedSessionData.masters[0]?.branchId;
     const activeBranch = localStorage.getItem('active_branch') || fallbackBranchId;
 
+    // ✅ FIX: Create an exact map linking every transaction ID to its correct edited date
+    const transactionDatesMap = {};
+    aggregatedSessionData.collections.forEach(col => {
+      const parentSession = aggregatedSessionData.masters.find(s => s.id === col.sessionId);
+      transactionDatesMap[col.id] = col.date || parentSession?.date;
+    });
+
     try {
       const payload = {
         branchId: activeBranch, 
@@ -142,14 +148,15 @@ export default function SalesEntry() {
         sessionIds: selectedSessionIds, 
         denominations: aggregatedSessionData.denominations,
         netTotal: aggregatedSessionData.netTotal,
-        date: aggregatedSessionData.masters[0]?.date
+        transactionDates: transactionDatesMap, // Pass the explicit map to the backend
+        date: aggregatedSessionData.collections[0]?.date || aggregatedSessionData.masters[0]?.date // Legacy fallback
       };
 
       const response = await api.post('/api/inflow/verify-bulk', payload);
 
       if (response.data.success) {
         alert(`Successfully verified and vaulted ${selectedSessionIds.length} batched sessions!`);
-        setSelectedSessionIds([]); // Reset selection entirely
+        setSelectedSessionIds([]); 
       }
     } catch (error) {
       console.error("Vault submission failed:", error);

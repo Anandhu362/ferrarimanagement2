@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
+// ✅ Import the custom Premium Calendar
+import PremiumCalendar from '../../components/shared/PremiumCalendar';
 
 export default function EditCollectionModal({ isOpen, onClose, collectionData }) {
   const [companyName, setCompanyName] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [date, setDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // ✅ State to manage the custom calendar modal/dropdown visibility
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Re-populate the form whenever the modal opens with new data
   useEffect(() => {
     if (collectionData && isOpen) {
       setCompanyName(collectionData.companyName || '');
       setInvoiceNumber(collectionData.invoiceNumber === 'NIL' ? '' : (collectionData.invoiceNumber || ''));
+      setDate(collectionData.date || ''); 
     }
   }, [collectionData, isOpen]);
 
@@ -22,20 +29,24 @@ export default function EditCollectionModal({ isOpen, onClose, collectionData })
       return;
     }
 
+    if (!date) {
+      alert("Collection Date is required.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const payload = {
         collectionId: collectionData.id,
         companyName: companyName.trim(),
-        invoiceNumber: invoiceNumber.trim() || 'NIL'
+        invoiceNumber: invoiceNumber.trim() || 'NIL',
+        date: date
       };
 
       const response = await api.put('/api/inflow/collection/edit-text', payload);
 
       if (response.data.success) {
-        // Because the dashboard uses onSnapshot listeners, 
-        // the UI will auto-refresh. We just need to close the modal.
         onClose();
       }
     } catch (error) {
@@ -46,7 +57,6 @@ export default function EditCollectionModal({ isOpen, onClose, collectionData })
     }
   };
 
-  // If the modal is not open, do not render anything
   if (!isOpen) return null;
 
   return (
@@ -57,7 +67,7 @@ export default function EditCollectionModal({ isOpen, onClose, collectionData })
         <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-bold text-slate-900">Edit Collection</h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">Update text details for the ledger.</p>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Update text & date details for the ledger.</p>
           </div>
           <button 
             onClick={onClose}
@@ -70,6 +80,36 @@ export default function EditCollectionModal({ isOpen, onClose, collectionData })
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           
+          {/* ✅ CUSTOM FINTECH CALENDAR IMPLEMENTATION */}
+          <div className="relative">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Collection Date <span className="text-rose-500">*</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setIsCalendarOpen(true)}
+              className="w-full text-left px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-900 text-sm flex justify-between items-center font-medium"
+            >
+              {date || "Select Date..."}
+              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+            
+            {/* The actual calendar component renders conditionally inside */}
+            <div className="relative">
+              <PremiumCalendar 
+                selectedDate={date}
+                onDateSelect={(newDate) => {
+                  setDate(newDate);
+                  setIsCalendarOpen(false); // Close on select
+                }}
+                isOpen={isCalendarOpen}
+                onClose={() => setIsCalendarOpen(false)}
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               Company Name <span className="text-rose-500">*</span>

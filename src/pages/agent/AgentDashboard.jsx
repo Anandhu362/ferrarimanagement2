@@ -16,7 +16,8 @@ export default function AgentDashboard() {
 
   // --- Form & UI State ---
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  // ✅ Changed initial state to blank string to force mandatory selection
+  const [date, setDate] = useState('');
   const [currentCompany, setCurrentCompany] = useState('');
   const [currentInvoice, setCurrentInvoice] = useState('');
   const [currentAmount, setCurrentAmount] = useState('');
@@ -79,21 +80,30 @@ export default function AgentDashboard() {
 
   // --- Cart Actions ---
   const handleAddToCart = () => {
+    // ✅ Mandatory Validation Check for Date
+    if (!date || date.trim() === '') {
+      alert("Please select a Collection Date before adding.");
+      return;
+    }
     if (!currentCompany || !currentAmount) {
       alert("Please enter a Company Name and Amount to add.");
       return;
     }
     
+    // ✅ Store the specific selected date inside the item collection metadata
     setCartItems([...cartItems, { 
       companyName: currentCompany, 
       invoiceNumber: currentInvoice && currentInvoice.trim() !== '' ? currentInvoice.trim() : 'NIL',
       amount: currentAmount,
+      date: date,
       itemDenominations: {} 
     }]);
     
+    // ✅ Clear all input fields and refresh date back to blank
     setCurrentCompany('');
     setCurrentInvoice('');
     setCurrentAmount('');
+    setDate('');
   };
 
   const handleRemoveFromCart = (indexToRemove) => {
@@ -143,7 +153,6 @@ export default function AgentDashboard() {
         clientSessionId: uniqueSessionId, 
         totalCollected: totalAmount,
         collections: cartItems, 
-        date: date,
         agentName: currentAgentName,
         branchId: activeBranch
       }
@@ -192,9 +201,11 @@ export default function AgentDashboard() {
             <button
               type="button"
               onClick={() => setIsCalendarOpen(true)}
-              className="w-full text-left px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 transition-all text-slate-700 text-sm flex justify-between items-center font-medium"
+              className={`w-full text-left px-4 py-3 border rounded-xl focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm flex justify-between items-center font-medium ${
+                date ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-rose-50/40 border-rose-200 text-rose-400'
+              }`}
             >
-              {date}
+              {date || "Select Mandatory Collection Date..."}
               <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
             </button>
             <div className="relative">
@@ -269,7 +280,13 @@ export default function AgentDashboard() {
                     <div className="flex flex-wrap items-center justify-between gap-y-3 gap-x-2">
                       
                       <div className="flex flex-col min-w-[120px] flex-1 overflow-hidden pr-2">
-                        <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5 truncate">{item.companyName}</span>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest truncate">{item.companyName}</span>
+                          {/* ✅ Display the dynamic item-specific date on the card */}
+                          <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50/60 px-2 py-0.5 rounded-full border border-emerald-100/40">
+                            {item.date}
+                          </span>
+                        </div>
                         <span className="text-sm font-semibold text-slate-900 truncate">INV: {item.invoiceNumber}</span>
                       </div>
                       
