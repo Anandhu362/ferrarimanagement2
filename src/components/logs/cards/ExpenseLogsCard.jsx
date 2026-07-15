@@ -1,10 +1,15 @@
 // frontend/src/components/logs/cards/ExpenseLogsCard.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import EditExpenseDateModal from '../../expenses/EditExpenseDateModal'; // ✅ Import the new modal
 
-export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onExpand }) {
+export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onExpand, onRefresh }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
+  
+  // ✅ NEW: State to manage the Edit Modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedExpenseForEdit, setSelectedExpenseForEdit] = useState(null);
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false);
@@ -69,6 +74,20 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
     }
   };
   
+  // ✅ NEW: Handlers for the Edit Modal
+  const handleEditClick = (e, expense) => {
+    e.stopPropagation(); // Prevent row click events if you add any in the future
+    setSelectedExpenseForEdit(expense);
+    setIsEditModalOpen(true);
+  };
+
+  const handleModalSuccess = () => {
+    // If the parent provided a refresh function, call it to fetch updated data
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
+  
   const formatTrxDate = (dateVal) => {
     if (!dateVal) return '--:--';
     try {
@@ -114,7 +133,7 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
           </div>
         </div>
 
-        {/* Updated Header Actions with Conditional Search Bar */}
+        {/* Header Actions with Conditional Search Bar */}
         <div className="flex items-center gap-2 sm:gap-3 relative z-10">
           
           {/* ONLY SHOW SEARCH WHEN EXPANDED */}
@@ -171,13 +190,14 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
                 <th className="px-6 py-4 w-full bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Description</th>
                 <th className="px-6 py-4 text-right whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Amount (AED)</th>
                 <th className="px-6 py-4 text-center whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Status</th>
+                {/* ✅ NEW: Actions Column Header */}
+                <th className="px-6 py-4 text-center whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/80 text-sm">
-              {/* Check against filteredData instead of expensesData */}
               {!filteredData || filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
+                  <td colSpan="5" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -187,7 +207,6 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
                   </td>
                 </tr>
               ) : (
-                // Map over filteredData
                 filteredData.map((trx, index) => {
                   const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
                   const { dot, text, prefix } = getTrxColors(trx.type);
@@ -197,7 +216,6 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
                     <tr 
                       key={index} 
                       onMouseEnter={() => {
-                        // Only trigger hover if we are NOT using the keyboard
                         if (!isKeyboardNav.current) {
                           setSelectedIndex(index);
                         }
@@ -233,6 +251,19 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
                           {trx.status || 'COMPLETED'}
                         </span>
                       </td>
+
+                      {/* ✅ NEW: Actions Cell with Edit Button */}
+                      <td className="px-6 py-4 text-center whitespace-nowrap">
+                        <button
+                          onClick={(e) => handleEditClick(e, trx)}
+                          className="text-slate-400 hover:text-blue-600 transition-colors p-1.5 rounded-lg hover:bg-blue-50 focus:outline-none"
+                          title="Edit Date"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -241,6 +272,14 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
           </table>
         )}
       </div>
+
+      {/* ✅ NEW: Render the Edit Modal Component */}
+      <EditExpenseDateModal 
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        expense={selectedExpenseForEdit}
+        onSuccess={handleModalSuccess}
+      />
     </div>
   );
 }

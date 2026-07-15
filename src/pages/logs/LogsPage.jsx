@@ -250,12 +250,14 @@ export default function LogsPage() {
             />
           )}
 
+          {/* ✅ UPDATED: ExpenseLogsCard now has the onRefresh prop passed down */}
           {(!expandedCard || expandedCard === 'expenses') && (
             <ExpenseLogsCard 
               expensesData={expenses} 
               loading={loading} 
               isExpanded={expandedCard === 'expenses'}
               onExpand={() => handleExpandToggle('expenses')} 
+              onRefresh={fetchLogs} 
             />
           )}
 
@@ -277,7 +279,7 @@ export default function LogsPage() {
             />
           )}
 
-          {/* ✅ NEW: Reserve Logs Card securely placed spanning both columns at the bottom of the grid block */}
+          {/* Reserve Logs Card securely placed spanning both columns at the bottom of the grid block */}
           {!expandedCard && (
             <div className="xl:col-span-2 pt-4">
               <ReserveLogsCard 
