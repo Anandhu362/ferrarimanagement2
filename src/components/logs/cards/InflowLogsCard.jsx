@@ -1,4 +1,3 @@
-// frontend/src/components/logs/cards/InflowLogsCard.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExpand }) {
@@ -8,6 +7,23 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false); 
+
+  // --- NEW: Helper to extract invoice from description ---
+  const extractInvoiceNumber = (trx) => {
+    // 1. Check if backend eventually adds it as a standalone field
+    if (trx.invoiceNumber) return trx.invoiceNumber;
+    if (trx.invoice_number) return trx.invoice_number;
+
+    // 2. Extract from description (e.g., "Invoice INV777 - SAM LLC")
+    if (trx.description && trx.description.includes('Invoice ')) {
+      const parts = trx.description.split(' - ');
+      if (parts.length > 0 && parts[0].includes('Invoice ')) {
+        return parts[0].replace('Invoice ', '').trim(); // Returns just "INV777"
+      }
+    }
+
+    return '-';
+  };
 
   // Filter data dynamically based on search query
   const filteredData = useMemo(() => {
@@ -20,8 +36,10 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
       const descMatch = (trx.description || '').toLowerCase().includes(lowerQuery);
       // Check amount
       const amountMatch = String(trx.amount || '').includes(lowerQuery);
+      // Check invoice using the new extractor
+      const invoiceMatch = extractInvoiceNumber(trx).toLowerCase().includes(lowerQuery);
       
-      return descMatch || amountMatch;
+      return descMatch || amountMatch || invoiceMatch;
     });
   }, [inflowsData, searchQuery]);
 
@@ -47,17 +65,17 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
     }
   }, [selectedIndex]);
 
-  // Handle keyboard navigation (now using filteredData)
+  // Handle keyboard navigation
   const handleKeyDown = (e) => {
     if (!filteredData || filteredData.length === 0) return;
 
     if (e.key === 'ArrowDown') {
-      e.preventDefault(); // Prevent page scrolling
-      isKeyboardNav.current = true; // Lock mouse hover
+      e.preventDefault(); 
+      isKeyboardNav.current = true; 
       setSelectedIndex((prev) => Math.min(prev + 1, filteredData.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      isKeyboardNav.current = true; // Lock mouse hover
+      isKeyboardNav.current = true; 
       setSelectedIndex((prev) => Math.max(prev - 1, 0));
     }
   };
@@ -97,8 +115,15 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
     return 'bg-slate-50 text-slate-500 border-slate-200/50';
   };
 
+  // --- UPDATED: Ensure Company Name is clean of Invoice Data ---
   const extractCompanyName = (desc) => {
     if (!desc) return '';
+    // If formatted like "Invoice INV777 - SAM LLC", return everything after the first dash
+    if (desc.includes('Invoice ') && desc.includes(' - ')) {
+      const parts = desc.split(' - ');
+      return parts.slice(1).join(' - ').trim();
+    }
+    // Fallback for older entries
     const parts = desc.split(' - ');
     if (parts.length > 1) {
       return parts.slice(1).join(' - ').trim();
@@ -126,18 +151,17 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
           </div>
         </div>
         
-        {/* Updated Header Actions with Conditional Search Bar */}
+        {/* Header Actions */}
         <div className="flex items-center gap-2 sm:gap-3 relative z-10">
           
-          {/* ONLY SHOW SEARCH WHEN EXPANDED */}
           {isExpanded && (
             <div className="relative animate-in fade-in zoom-in-95 duration-200">
               <input
                 type="text"
-                placeholder="Search name or amount..."
+                placeholder="Search name, invoice, or amount..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-white/20 text-white placeholder:text-white/70 border border-white/20 rounded-full pl-4 pr-9 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-white/50 w-40 sm:w-64 transition-all backdrop-blur-sm"
+                className="bg-white/20 text-white placeholder:text-white/70 border border-white/20 rounded-full pl-4 pr-9 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-white/50 w-48 sm:w-64 transition-all backdrop-blur-sm"
               />
               <svg className="w-3.5 h-3.5 text-white/80 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -181,15 +205,16 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
               <tr className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 shadow-sm">
                 <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Date & Time</th>
                 <th className="px-6 py-4 w-full bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Company</th>
+                {/* NEW INVOICE HEADER */}
+                <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Invoice</th>
                 <th className="px-6 py-4 text-right whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Amount (AED)</th>
                 <th className="px-6 py-4 text-center whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/80 text-sm">
-              {/* Check against filteredData instead of inflowsData */}
               {!filteredData || filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
+                  <td colSpan="5" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
@@ -199,17 +224,18 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                   </td>
                 </tr>
               ) : (
-                // Map over filteredData
                 filteredData.map((trx, index) => {
                   const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
                   const { dot, text, prefix } = getTrxColors(trx.type);
                   const isSelected = index === selectedIndex;
                   
+                  // UPDATED: Grab invoice string using the new helper
+                  const invoiceStr = extractInvoiceNumber(trx);
+                  
                   return (
                     <tr 
                       key={index} 
                       onMouseEnter={() => {
-                        // Only trigger hover if we are NOT using the keyboard
                         if (!isKeyboardNav.current) {
                           setSelectedIndex(index);
                         }
@@ -235,6 +261,13 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                             )}
                           </div>
                         </div>
+                      </td>
+
+                      {/* NEW INVOICE DATA CELL */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-slate-600 font-medium text-xs tracking-wide group-hover:text-slate-800 transition-colors">
+                          {invoiceStr}
+                        </span>
                       </td>
 
                       <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tracking-tight ${text}`}>
