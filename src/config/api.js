@@ -31,6 +31,14 @@ export const ENDPOINTS = {
   BULK_HISTORY: '/api/orders/bulk-history',
   BULK_UPDATE: '/api/orders/bulk-excel/update',
   // DISPATCH endpoint removed as part of the Delivery Form Gen architectural pivot
+  
+  // ✅ NEW: Reserve Vault Endpoints
+  RESERVE_REVERSAL: '/api/reserve/reverse-inflow',
+};
+
+// ✅ NEW: Exported API function to handle the Reserve Inflow Reversal
+export const reverseReserveInflow = async (payload) => {
+  return await api.post(ENDPOINTS.RESERVE_REVERSAL, payload);
 };
 
 export default api;

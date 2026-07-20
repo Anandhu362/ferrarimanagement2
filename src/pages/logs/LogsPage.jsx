@@ -285,6 +285,7 @@ export default function LogsPage() {
               <ReserveLogsCard 
                 logs={reserveLogs} 
                 loading={reserveLoading} 
+                onRefresh={fetchLogs}
               />
             </div>
           )}
