@@ -40,17 +40,24 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
     setViewDate(new Date(currentYear, currentMonth + 1, 1));
   };
 
-  const handleSelect = (day) => {
+  const handleSelect = (e, day) => {
     const m = String(currentMonth + 1).padStart(2, '0');
     const d = String(day).padStart(2, '0');
     const dateString = `${currentYear}-${m}-${d}`;
     
-    // Toggle logic: Add if not present, remove if present
     let newSelectedDates;
-    if (selectedDates.includes(dateString)) {
-      newSelectedDates = selectedDates.filter(date => date !== dateString);
+
+    // Check if Ctrl (Windows) or Cmd (Mac) is held down
+    if (e.ctrlKey || e.metaKey) {
+      // MULTI-SELECT MODE: Toggle logic
+      if (selectedDates.includes(dateString)) {
+        newSelectedDates = selectedDates.filter(date => date !== dateString);
+      } else {
+        newSelectedDates = [...selectedDates, dateString];
+      }
     } else {
-      newSelectedDates = [...selectedDates, dateString];
+      // SINGLE-SELECT MODE: Replace array with just this date
+      newSelectedDates = [dateString];
     }
     
     onDateSelect(newSelectedDates);
@@ -120,7 +127,7 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
             return (
               <button
                 key={day}
-                onClick={(e) => { e.stopPropagation(); handleSelect(day); }}
+                onClick={(e) => { e.stopPropagation(); handleSelect(e, day); }}
                 className={`w-9 h-9 flex items-center justify-center rounded-full text-xs font-medium transition-all ${
                   isSelected 
                     ? 'bg-slate-900 text-white shadow-md' 
