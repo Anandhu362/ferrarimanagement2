@@ -1,59 +1,53 @@
 // frontend/src/pages/vault/BankVaultOverview.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api'; 
-
-// The baseline structure we always want to show, even if quantity is 0
-const DENOMINATION_TIERS = [
-  { value: 1000, label: '1,000 AED', type: 'note' },
-  { value: 500, label: '500 AED', type: 'note' },
-  { value: 200, label: '200 AED', type: 'note' },
-  { value: 100, label: '100 AED', type: 'note' },
-  { value: 50, label: '50 AED', type: 'note' },
-  { value: 20, label: '20 AED', type: 'note' },
-  { value: 10, label: '10 AED', type: 'note' },
-  { value: 5, label: '5 AED', type: 'note' },
-  { value: 1, label: 'Mixed Coins', type: 'coin' },
-];
+import BankTransactionForm from '../../components/vault/BankTransactionForm'; // ✅ IMPORTED NEW FORM
+import BankLogsCard from '../../components/vault/BankLogsCard'; // ✅ IMPORTED NEW LOGS CARD
 
 export default function BankVaultOverview() {
-  const [bankData, setBankData] = useState([]);
   const [totalBalance, setTotalBalance] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ NEW: Toggle this state to trigger child component re-fetches
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // ✅ MOVED FUNCTION OUTSIDE useEffect so it can be called manually
+  const fetchBankVaultData = async () => {
+    try {
+      // Grab the active branch to ensure we don't fetch global sums
+      const activeBranch = localStorage.getItem('active_branch');
+      
+      if (!activeBranch) {
+        console.warn("No active branch selected.");
+        setLoading(false);
+        return;
+      }
+      
+      // Fetches data from the new Bank Summary endpoint
+      const response = await api.get(`/api/vault/bank-summary?branchId=${encodeURIComponent(activeBranch)}`);
+      const result = response.data; 
+
+      if (result.success) {
+        setTotalBalance(result.totalBalance || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching bank vault data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchBankVaultData = async () => {
-      try {
-        // Grab the active branch to ensure we don't fetch global sums
-        const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
-        
-        // Fetches data from the new Bank Summary endpoint
-        const response = await api.get(`/api/vault/bank-summary?branchId=${encodeURIComponent(activeBranch)}`);
-        const result = response.data; 
-
-        if (result.success) {
-          // Merge DB data with our baseline tiers to ensure empty rows show '-'
-          const mergedData = DENOMINATION_TIERS.map(tier => {
-            const dbMatch = result.denominations.find(row => parseFloat(row.denomination_value) === tier.value);
-            const qty = dbMatch ? parseInt(dbMatch.total_quantity) : 0;
-            const totalValue = qty * tier.value;
-            
-            return { ...tier, qty, totalValue };
-          });
-
-          setTotalBalance(result.totalBalance || 0);
-          setBankData(mergedData);
-        }
-      } catch (error) {
-        console.error("Error fetching bank vault data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchBankVaultData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]); // ✅ Re-fetch when trigger changes
 
-  if (loading) {
+  const handleTransactionSuccess = () => {
+    // Increment trigger to refetch both the balance and the logs component
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  if (loading && totalBalance === 0) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
         <span className="relative flex h-6 w-6">
@@ -72,7 +66,7 @@ export default function BankVaultOverview() {
       <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h2 className="text-[1.75rem] font-semibold text-slate-900 tracking-tight leading-tight">Bank Vault Overview</h2>
-          <p className="text-slate-500 text-sm mt-1.5 font-light tracking-wide">Real-time read-only view of cumulative bank deposits and denomination distribution.</p>
+          <p className="text-slate-500 text-sm mt-1.5 font-light tracking-wide">Real-time read-only view of cumulative bank deposits.</p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50/50 px-4 py-2 rounded-full border border-emerald-100">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -80,13 +74,14 @@ export default function BankVaultOverview() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Main Content Area - Split Grid Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
         
-        {/* LEFT COLUMN */}
-        <div className="lg:col-span-4 space-y-6">
+        {/* LEFT COLUMN: Balance, Rules, and Manual Form */}
+        <div className="xl:col-span-5 space-y-8">
           
           {/* Main Balance Card */}
-          <div className="bg-brand-dark rounded-[2rem] p-8 text-white relative overflow-hidden shadow-xl">
+          <div className="bg-brand-dark rounded-[2rem] p-8 text-white relative overflow-hidden shadow-xl flex flex-col justify-center">
             <div className="absolute -right-12 -top-12 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
             
             <div className="relative z-10">
@@ -101,95 +96,32 @@ export default function BankVaultOverview() {
                   <span className="text-white/60 font-light">Last Reconciliation</span>
                   <span className="font-medium text-white">Today, 09:00 AM</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-white/60 font-light">Pending Clearing</span>
-                  <span className="font-medium text-emerald-400">+ AED 0.00</span>
-                </div>
               </div>
             </div>
           </div>
 
           {/* Rules Card */}
-          <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm">
+          <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col justify-center">
             <h4 className="text-sm font-semibold text-slate-900 mb-6">Bank Tracking Rules</h4>
             <ul className="space-y-4 text-sm">
               <li className="flex gap-3 text-slate-600">
-                <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                <span className="leading-relaxed font-light">This vault only tracks outflow records explicitly marked as Bank Deposits in the ledger.</span>
-              </li>
-              <li className="flex gap-3 text-slate-600">
-                <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                <span className="leading-relaxed font-light">Denominations are retroactively calculated by parsing the deposit description string.</span>
+                <svg className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                <span className="leading-relaxed font-light">This vault tracks physical deposits explicitly marked as Bank Deposits in the ledger, plus manual bank adjustments.</span>
               </li>
             </ul>
           </div>
+
+          {/* Manual Bank Transaction Form */}
+          <BankTransactionForm onSuccess={handleTransactionSuccess} />
         </div>
 
-        {/* RIGHT COLUMN: Denomination Distribution */}
-        <div className="lg:col-span-8 bg-white rounded-[2rem] p-8 lg:p-10 border border-slate-100 shadow-sm flex flex-col">
-          
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Deposited Denominations</h3>
-            <span className="text-xs font-medium text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
-              9 Categories Tracked
-            </span>
-          </div>
-
-          {/* Table Header */}
-          <div className="grid grid-cols-12 gap-4 pb-4 border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">
-            <div className="col-span-4 sm:col-span-3 pl-2">Note/Coin</div>
-            <div className="col-span-2 text-center">Qty</div>
-            <div className="col-span-4 sm:col-span-3 text-right">Total Value</div>
-            <div className="col-span-4 text-right pr-2 hidden sm:block">Vault Share</div>
-          </div>
-
-          {/* List */}
-          <div className="flex-1 space-y-6 mt-2">
-            {bankData.map((item, idx) => {
-              // Calculate width for the progress bar based on total balance
-              const percentage = totalBalance > 0 ? (item.totalValue / totalBalance) * 100 : 0;
-
-              return (
-                <div key={idx} className="grid grid-cols-12 gap-4 items-center group">
-                  <div className="col-span-4 sm:col-span-3 flex items-center gap-3">
-                    <div className={`w-8 h-6 rounded flex items-center justify-center text-[10px] font-bold ${item.type === 'note' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100 rounded-full w-7 h-7'}`}>
-                      {item.type === 'note' ? '💵' : '🪙'}
-                    </div>
-                    <span className="text-sm font-medium text-slate-700">{item.label}</span>
-                  </div>
-                  
-                  <div className="col-span-2 flex justify-center">
-                    <span className="bg-slate-50 border border-slate-100 text-slate-600 text-xs font-medium px-4 py-1.5 rounded-xl">
-                      {item.qty === 0 ? '-' : item.qty.toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  <div className="col-span-6 sm:col-span-3 text-right font-semibold text-slate-900 text-sm">
-                    {item.totalValue === 0 ? '-' : item.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                  </div>
-                  
-                  <div className="col-span-4 hidden sm:flex items-center justify-end pl-6">
-                    <div className="w-full bg-slate-50 rounded-full h-1.5 overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 ${percentage > 30 ? 'bg-brand-dark' : percentage > 10 ? 'bg-brand-light' : 'bg-slate-400'}`} 
-                        style={{ width: `${percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Footer Footer */}
-          <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center text-sm">
-            <span className="text-slate-400 font-light">Totals matched with database</span>
-            <span className="font-semibold text-slate-900">AED {totalBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-          </div>
-
+        {/* RIGHT COLUMN: Vertical Log Container */}
+        <div className="xl:col-span-7 h-full">
+          <BankLogsCard refreshTrigger={refreshTrigger} />
         </div>
-
+        
       </div>
+
     </div>
   );
 }
