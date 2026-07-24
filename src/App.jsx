@@ -19,11 +19,12 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import MassInflow from './pages/cash-inflow/MassInflow'; 
 import VaultOverview from './pages/vault/VaultOverview';
+import AccountantVault from './pages/vault/AccountantVault';
+import BankVaultOverview from './pages/vault/BankVaultOverview'; // ✅ NEW: Import Bank Vault
 import ExpenseForm from './pages/expenses/ExpenseForm';
 import PettyCashManager from './pages/petty-cash/PettyCashManager';
 import LogsPage from './pages/logs/LogsPage'; 
 import ExchangePage from './pages/exchange/ExchangePage'; 
-import AccountantVault from './pages/vault/AccountantVault';
 import SettingsPage from './pages/settings/SettingsPage'; // ✅ NEW: Import SettingsPage
 
 // Operations pages
@@ -103,11 +104,12 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/inflow" element={<MassInflow />} /> 
             <Route path="/vault" element={<VaultOverview />} />
+            <Route path="/accountant-vault" element={<AccountantVault />} />
+            <Route path="/bank-vault" element={<BankVaultOverview />} /> {/* ✅ NEW: Bank Vault Route */}
             <Route path="/expenses" element={<ExpenseForm />} />
             <Route path="/petty-cash" element={<PettyCashManager />} />
             <Route path="/logs" element={<LogsPage />} /> 
             <Route path="/exchange" element={<ExchangePage />} /> 
-            <Route path="/accountant-vault" element={<AccountantVault />} />
             
             {/* ✅ NEW: Settings route added to the protected layout */}
             <Route path="/settings" element={<SettingsPage />} /> 
