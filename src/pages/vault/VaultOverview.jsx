@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api'; // ✅ IMPORTING YOUR CENTRAL API
 import ReserveVaultCard from '../../components/vault/ReserveVaultCard'; // ✅ Imported Reserve Vault Component
+import ReserveLogsCard from '../../components/logs/cards/ReserveLogsCard'; // ✅ ADDED: Imported Reserve Logs Card
 
 // The baseline structure we always want to show, even if quantity is 0
 const DENOMINATION_TIERS = [
@@ -20,6 +21,28 @@ export default function VaultOverview() {
   const [vaultData, setVaultData] = useState([]);
   const [totalBalance, setTotalBalance] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // ✅ ADDED: Dedicated state for Reserve Vault activity logs
+  const [reserveLogs, setReserveLogs] = useState([]);
+  const [reserveLoading, setReserveLoading] = useState(true);
+
+  // ✅ ADDED: Fetch function for Reserve Logs
+  const fetchReserveLogs = async () => {
+    setReserveLoading(true);
+    try {
+      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const reserveEndpoint = `/api/logs/reserve?branchId=${encodeURIComponent(activeBranch)}`;
+      const response = await api.get(reserveEndpoint);
+      
+      if (response.data.success) {
+        setReserveLogs(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching reserve logs:", error);
+    } finally {
+      setReserveLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchVaultData = async () => {
@@ -57,6 +80,7 @@ export default function VaultOverview() {
     };
 
     fetchVaultData();
+    fetchReserveLogs(); // ✅ ADDED: Call the reserve logs fetch on mount
   }, []);
 
   if (loading) {
@@ -200,6 +224,15 @@ export default function VaultOverview() {
       {/* ✅ NEW: Reserve Vault Float Container added as a secondary section below the main view */}
       <div className="mt-8">
         <ReserveVaultCard />
+      </div>
+      
+      {/* ✅ ADDED: Reserve Logs placed directly below the Reserve Vault card */}
+      <div className="mt-8">
+        <ReserveLogsCard 
+          logs={reserveLogs} 
+          loading={reserveLoading} 
+          onRefresh={fetchReserveLogs}
+        />
       </div>
 
     </div>

@@ -12,18 +12,12 @@ import TransferLogsCard from '../../components/logs/cards/TransferLogsCard';
 import PettyCashLogsCard from '../../components/logs/cards/PettyCashLogsCard';
 import DailyDenominationsCard from '../../components/logs/cards/DailyDenominationsCard';
 
-// ✅ NEW: Import the Reserve Logs Card
-import ReserveLogsCard from '../../components/logs/cards/ReserveLogsCard';
 import api from '../../config/api'; 
 
 export default function LogsPage() {
   // Main Ledger State
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // ✅ NEW: Dedicated state for Reserve Vault activity
-  const [reserveLogs, setReserveLogs] = useState([]);
-  const [reserveLoading, setReserveLoading] = useState(true);
 
   const [branchError, setBranchError] = useState(false); 
   const navigate = useNavigate();
@@ -38,10 +32,9 @@ export default function LogsPage() {
   // State: Tracks which card is currently maximized (full-screen)
   const [expandedCard, setExpandedCard] = useState(null); 
 
-  // fetchLogs now runs parallel API calls to fetch both the master ledger and the isolated reserve ledger
+  // fetchLogs now runs a single API call to fetch the master ledger
   const fetchLogs = async (dateToFetch = selectedDate) => {
     setLoading(true);
-    setReserveLoading(true);
 
     try {
       const activeBranch = localStorage.getItem('active_branch');
@@ -50,24 +43,17 @@ export default function LogsPage() {
       if (!activeBranch) {
         setBranchError(true);
         setLoading(false);
-        setReserveLoading(false);
         return;
       }
       
       // Dynamic API Endpoints
       let mainEndpoint = `/api/logs/all?branchId=${encodeURIComponent(activeBranch)}`;
-      let reserveEndpoint = `/api/logs/reserve?branchId=${encodeURIComponent(activeBranch)}`;
 
       if (dateToFetch) {
         mainEndpoint = `/api/logs/daily?branchId=${encodeURIComponent(activeBranch)}&date=${dateToFetch}`;
-        reserveEndpoint += `&date=${dateToFetch}`;
       }
       
-      // Execute both requests concurrently for maximum speed
-      const [mainResponse, reserveResponse] = await Promise.all([
-        api.get(mainEndpoint),
-        api.get(reserveEndpoint)
-      ]);
+      const mainResponse = await api.get(mainEndpoint);
       
       // 1. Process Main Logs
       if (mainResponse.data.success) {
@@ -85,16 +71,10 @@ export default function LogsPage() {
         setLogs(sortedLogs);
       }
 
-      // 2. Process Reserve Logs
-      if (reserveResponse.data.success) {
-        setReserveLogs(reserveResponse.data.data);
-      }
-
     } catch (error) {
       console.error("Error fetching logs:", error);
     } finally {
       setLoading(false);
-      setReserveLoading(false);
     }
   };
 
@@ -279,16 +259,6 @@ export default function LogsPage() {
             />
           )}
 
-          {/* Reserve Logs Card securely placed spanning both columns at the bottom of the grid block */}
-          {!expandedCard && (
-            <div className="xl:col-span-2 pt-4">
-              <ReserveLogsCard 
-                logs={reserveLogs} 
-                loading={reserveLoading} 
-                onRefresh={fetchLogs}
-              />
-            </div>
-          )}
         </div>
 
         {/* RIGHT COLUMN: Daily Denominations Breakdown Sidebar */}
