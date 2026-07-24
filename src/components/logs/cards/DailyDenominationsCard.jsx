@@ -3,14 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore'; 
 import { db } from '../../../config/firebase'; // Double check this path matches your project structure
 
-export default function DailyDenominationsCard({ selectedDate }) {
+export default function DailyDenominationsCard({ selectedDates = [] }) {
   const [denominations, setDenominations] = useState([]);
   const [grandTotal, setGrandTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // If no date is selected, clear the data and don't fetch
-    if (!selectedDate) {
+    // If no dates are selected, clear the data and don't fetch
+    if (!selectedDates || selectedDates.length === 0) {
       setDenominations([]);
       setGrandTotal(0);
       return;
@@ -20,54 +20,70 @@ export default function DailyDenominationsCard({ selectedDate }) {
       setLoading(true);
       try {
         const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+        let totalSum = 0;
+        const aggregatedDenoms = {}; // Map to accumulate quantities across multiple days
         
-        // 1. BULLETPROOF DATE FORMATTING: Ensures strict "YYYY-MM-DD" matching
-        const dateObj = new Date(selectedDate);
-        const formattedDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-        
-        // Point directly to the master daily_denominations document in Firestore
-        const docRef = doc(db, 'branches', activeBranch, 'daily_denominations', formattedDate);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          let total = 0;
-          const formattedBreakdown = [];
+        // 1. Map each selected date to a Firestore getDoc promise
+        const promises = selectedDates.map(dateStr => {
+          const dateObj = new Date(dateStr);
+          // BULLETPROOF DATE FORMATTING: Ensures strict "YYYY-MM-DD" matching
+          const formattedDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
           
-          // 2. THE FIX: Loop through ALL keys and catch the literal "notes.X" strings
-          Object.entries(data).forEach(([key, qty]) => {
-            if (key.startsWith('notes.')) {
-              // Extract the denomination part (e.g., "1000" from "notes.1000")
-              const noteValue = key.replace('notes.', '');
-              
-              const numericNote = noteValue === 'Coins' ? 1 : parseFloat(noteValue);
-              const numericQty = parseInt(qty, 10);
-              const rowTotal = numericNote * numericQty;
-              
-              total += rowTotal;
+          const docRef = doc(db, 'branches', activeBranch, 'daily_denominations', formattedDate);
+          return getDoc(docRef);
+        });
 
-              formattedBreakdown.push({
-                denomination: noteValue === 'Coins' ? 'Coins' : `${numericNote} AED`, 
-                quantity: numericQty,
-                totalValue: rowTotal
-              });
-            }
+        // 2. Execute all document fetches in parallel
+        const snapshots = await Promise.all(promises);
+
+        // 3. Merge the quantities from all existing documents
+        snapshots.forEach(docSnap => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            Object.entries(data).forEach(([key, qty]) => {
+              if (key.startsWith('notes.')) {
+                // Extract the denomination part (e.g., "1000" from "notes.1000")
+                const noteValue = key.replace('notes.', '');
+                const numericQty = parseInt(qty, 10);
+                
+                // Aggregate the quantity
+                if (aggregatedDenoms[noteValue]) {
+                  aggregatedDenoms[noteValue] += numericQty;
+                } else {
+                  aggregatedDenoms[noteValue] = numericQty;
+                }
+              }
+            });
+          }
+        });
+
+        const formattedBreakdown = [];
+        
+        // 4. Calculate totals for the aggregated quantities
+        Object.entries(aggregatedDenoms).forEach(([noteValue, totalQty]) => {
+          const numericNote = noteValue === 'Coins' ? 1 : parseFloat(noteValue);
+          const rowTotal = numericNote * totalQty;
+          
+          totalSum += rowTotal;
+
+          formattedBreakdown.push({
+            denomination: noteValue === 'Coins' ? 'Coins' : `${numericNote} AED`, 
+            quantity: totalQty,
+            totalValue: rowTotal
           });
+        });
 
-          // 3. Sort highest denominations first
-          formattedBreakdown.sort((a, b) => {
-            const valA = a.denomination === 'Coins' ? 1 : parseFloat(a.denomination);
-            const valB = b.denomination === 'Coins' ? 1 : parseFloat(b.denomination);
-            return valB - valA;
-          });
+        // 5. Sort highest denominations first
+        formattedBreakdown.sort((a, b) => {
+          const valA = a.denomination === 'Coins' ? 1 : parseFloat(a.denomination);
+          const valB = b.denomination === 'Coins' ? 1 : parseFloat(b.denomination);
+          return valB - valA;
+        });
 
-          setDenominations(formattedBreakdown);
-          setGrandTotal(total);
-        } else {
-          // If the document doesn't exist for this day, reset the state
-          setDenominations([]);
-          setGrandTotal(0);
-        }
+        setDenominations(formattedBreakdown);
+        setGrandTotal(totalSum);
+
       } catch (error) {
         console.error("Error fetching daily denominations:", error);
       } finally {
@@ -76,10 +92,10 @@ export default function DailyDenominationsCard({ selectedDate }) {
     };
 
     fetchDailyDenoms();
-  }, [selectedDate]);
+  }, [selectedDates]);
 
-  // 1. Placeholder State (No date selected)
-  if (!selectedDate) {
+  // 1. Placeholder State (No dates selected)
+  if (!selectedDates || selectedDates.length === 0) {
     return (
       <div className="bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col items-center justify-center min-h-[350px] text-center">
         <div className="bg-slate-50 p-4 rounded-full mb-4">
@@ -95,6 +111,11 @@ export default function DailyDenominationsCard({ selectedDate }) {
     );
   }
 
+  // Determine dynamic header text based on number of selected dates
+  const headerText = selectedDates.length === 1 
+    ? `Collected on ${new Date(selectedDates[0]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+    : `Collected across ${selectedDates.length} selected dates`;
+
   // 2. Main Render (Loading or Data)
   return (
     <div className={`bg-white rounded-[2rem] p-6 lg:p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col ${loading || denominations.length === 0 ? 'min-h-[350px]' : 'h-fit'}`}>
@@ -104,7 +125,7 @@ export default function DailyDenominationsCard({ selectedDate }) {
         <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Daily Breakdown</h3>
         <p className="text-xs text-slate-400 mt-1 font-light flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-brand-light"></span>
-          Collected on {new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+          {headerText}
         </p>
       </div>
 
@@ -118,10 +139,10 @@ export default function DailyDenominationsCard({ selectedDate }) {
           <p className="text-[11px] text-slate-400 font-medium tracking-widest uppercase">Fetching Notes...</p>
         </div>
       ) : denominations.length === 0 ? (
-        // Empty State (Date selected, but no cash logged)
+        // Empty State (Dates selected, but no cash logged)
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <p className="text-sm font-medium text-slate-500">No cash logged</p>
-          <p className="text-xs text-slate-400 mt-1 font-light">Zero vault activity recorded for this date.</p>
+          <p className="text-xs text-slate-400 mt-1 font-light">Zero vault activity recorded for the selected period.</p>
         </div>
       ) : (
         // Data State

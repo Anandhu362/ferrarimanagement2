@@ -3,21 +3,21 @@ import React, { useState, useEffect } from 'react';
 
 /**
  * PremiumCalendar - A high-end fintech-style date picker dropdown.
- * @param {string} selectedDate - ISO format date string (YYYY-MM-DD).
- * @param {function} onDateSelect - Callback function(dateString).
+ * @param {Array} selectedDates - Array of ISO format date strings (['YYYY-MM-DD', ...]).
+ * @param {function} onDateSelect - Callback function(dateStringArray).
  * @param {boolean} isOpen - Controls visibility.
  * @param {function} onClose - Closes the dropdown.
  * @param {node} children - Optional custom UI (like Download buttons) to render at the bottom.
  */
-export default function PremiumCalendar({ selectedDate, onDateSelect, isOpen, onClose, children }) {
+export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOpen, onClose, children }) {
   const [viewDate, setViewDate] = useState(new Date());
 
-  // Sync viewDate when the calendar opens to the already selected date
+  // Sync viewDate when the calendar opens to the first selected date (if any)
   useEffect(() => {
     if (isOpen) {
-      setViewDate(selectedDate ? new Date(selectedDate) : new Date());
+      setViewDate(selectedDates.length > 0 ? new Date(selectedDates[0]) : new Date());
     }
-  }, [isOpen, selectedDate]);
+  }, [isOpen, selectedDates]);
 
   if (!isOpen) return null;
 
@@ -44,9 +44,18 @@ export default function PremiumCalendar({ selectedDate, onDateSelect, isOpen, on
     const m = String(currentMonth + 1).padStart(2, '0');
     const d = String(day).padStart(2, '0');
     const dateString = `${currentYear}-${m}-${d}`;
-    onDateSelect(dateString);
+    
+    // Toggle logic: Add if not present, remove if present
+    let newSelectedDates;
+    if (selectedDates.includes(dateString)) {
+      newSelectedDates = selectedDates.filter(date => date !== dateString);
+    } else {
+      newSelectedDates = [...selectedDates, dateString];
+    }
+    
+    onDateSelect(newSelectedDates);
     // Note: We deliberately DO NOT call onClose() here anymore. 
-    // This keeps the calendar open so the user can click the "Download" button.
+    // This keeps the calendar open so the user can select multiple dates.
   };
 
   // Helper to check today
@@ -105,7 +114,7 @@ export default function PremiumCalendar({ selectedDate, onDateSelect, isOpen, on
 
           {days.map((day) => {
             const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isSelected = selectedDate === dateStr;
+            const isSelected = selectedDates.includes(dateStr);
             const isToday = todayStr === dateStr;
 
             return (
@@ -130,10 +139,10 @@ export default function PremiumCalendar({ selectedDate, onDateSelect, isOpen, on
         {children ? (
           children
         ) : (
-          selectedDate && (
+          selectedDates.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-50 flex justify-center">
               <button 
-                onClick={(e) => { e.stopPropagation(); onDateSelect(null); onClose(); }}
+                onClick={(e) => { e.stopPropagation(); onDateSelect([]); onClose(); }}
                 className="text-[11px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-widest transition-colors"
               >
                 Clear Filter

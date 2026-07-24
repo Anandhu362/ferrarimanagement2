@@ -22,8 +22,8 @@ export default function LogsPage() {
   const [branchError, setBranchError] = useState(false); 
   const navigate = useNavigate();
   
-  // State for the Calendar Filter
-  const [selectedDate, setSelectedDate] = useState(null);
+  // State for the Calendar Filter (Updated to array)
+  const [selectedDates, setSelectedDates] = useState([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   // State for Export Modal
@@ -33,7 +33,7 @@ export default function LogsPage() {
   const [expandedCard, setExpandedCard] = useState(null); 
 
   // fetchLogs now runs a single API call to fetch the master ledger
-  const fetchLogs = async (dateToFetch = selectedDate) => {
+  const fetchLogs = async (datesToFetch = selectedDates) => {
     setLoading(true);
 
     try {
@@ -49,8 +49,9 @@ export default function LogsPage() {
       // Dynamic API Endpoints
       let mainEndpoint = `/api/logs/all?branchId=${encodeURIComponent(activeBranch)}`;
 
-      if (dateToFetch) {
-        mainEndpoint = `/api/logs/daily?branchId=${encodeURIComponent(activeBranch)}&date=${dateToFetch}`;
+      // Update to handle an array of dates
+      if (datesToFetch && datesToFetch.length > 0) {
+        mainEndpoint = `/api/logs/daily?branchId=${encodeURIComponent(activeBranch)}&dates=${datesToFetch.join(',')}`;
       }
       
       const mainResponse = await api.get(mainEndpoint);
@@ -83,9 +84,9 @@ export default function LogsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-    fetchLogs(date); // Immediately fetch new data for both tables when date changes
+  const handleDateSelect = (dates) => {
+    setSelectedDates(dates);
+    fetchLogs(dates); // Immediately fetch new data for both tables when dates change
   };
 
   const handleExpandToggle = (cardName) => {
@@ -142,7 +143,7 @@ export default function LogsPage() {
               <button 
                 onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all shadow-sm border ${
-                  selectedDate 
+                  selectedDates.length > 0 
                     ? 'bg-slate-900 text-white border-slate-900 shadow-md hover:bg-slate-800' 
                     : 'bg-white text-slate-600 border-slate-200 hover:text-brand-dark hover:border-brand-light/30'
                 }`}
@@ -150,15 +151,17 @@ export default function LogsPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                {selectedDate 
-                  ? new Date(selectedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) 
+                {selectedDates.length > 0 
+                  ? (selectedDates.length === 1 
+                      ? new Date(selectedDates[0]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) 
+                      : `${selectedDates.length} Dates Selected`) 
                   : 'Filter Date'}
               </button>
 
               <PremiumCalendar 
                 isOpen={isCalendarOpen} 
                 onClose={() => setIsCalendarOpen(false)} 
-                selectedDate={selectedDate}
+                selectedDates={selectedDates}
                 onDateSelect={handleDateSelect}
               />
             </div>
@@ -196,7 +199,7 @@ export default function LogsPage() {
       </div>
 
       {/* Conditional Rendering of Daily Summary Cards */}
-      {selectedDate && !loading && !expandedCard && (
+      {selectedDates.length > 0 && !loading && !expandedCard && (
         <DailySummaryCards logs={logs} />
       )}
 
@@ -264,7 +267,7 @@ export default function LogsPage() {
         {/* RIGHT COLUMN: Daily Denominations Breakdown Sidebar */}
         {!expandedCard && (
           <div className="lg:col-span-4 flex flex-col gap-6">
-            <DailyDenominationsCard selectedDate={selectedDate} />
+            <DailyDenominationsCard selectedDates={selectedDates} />
           </div>
         )}
 
