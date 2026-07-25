@@ -6,7 +6,8 @@ import { db } from '../../config/firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore'; 
 
 export default function Dashboard() {
-  const [vaultBalance, setVaultBalance] = useState(0);
+  const [ceoVaultBalance, setCeoVaultBalance] = useState(0);
+  const [reserveVaultBalance, setReserveVaultBalance] = useState(0);
   const [vaultComposition, setVaultComposition] = useState([]);
   const [pettyCash, setPettyCash] = useState(0);
   const [todayInflow, setTodayInflow] = useState(0);
@@ -54,11 +55,27 @@ export default function Dashboard() {
           comp.push({ denomination_value: denom, qty });
         }
       });
-      setVaultBalance(total);
+      setCeoVaultBalance(total);
       setVaultComposition(comp.sort((a, b) => b.denomination_value - a.denomination_value));
     });
 
-    // B. Listen to Petty Cash Balance
+    // B. Listen to Reserve Vault Float
+    const reserveRef = collection(db, 'branches', activeBranch, 'reserve_vault_inventory');
+    const unsubReserve = onSnapshot(reserveRef, (snapshot) => {
+      let total = 0;
+      snapshot.forEach(document => {
+        const data = document.data();
+        const qty = parseInt(data.quantity) || 0;
+        const denom = parseFloat(data.denomination_value);
+        
+        if (qty > 0) {
+          total += (qty * denom);
+        }
+      });
+      setReserveVaultBalance(total);
+    });
+
+    // C. Listen to Petty Cash Balance
     const pcRef = doc(db, 'branches', activeBranch, 'petty_cash', 'balance');
     const unsubPC = onSnapshot(pcRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -66,7 +83,7 @@ export default function Dashboard() {
       }
     });
 
-    // C. Listen to Today's Inflow/Outflow Aggregator
+    // D. Listen to Today's Inflow/Outflow Aggregator
     const statsRef = doc(db, 'branches', activeBranch, 'daily_stats', todayStr);
     const unsubStats = onSnapshot(statsRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -78,6 +95,7 @@ export default function Dashboard() {
 
     return () => {
       unsubVault();
+      unsubReserve();
       unsubPC();
       unsubStats();
     };
@@ -176,7 +194,7 @@ export default function Dashboard() {
       else dSmall += total;
     });
 
-    const safeTotal = vaultBalance || 1; 
+    const safeTotal = ceoVaultBalance || 1; 
 
     return [
       { label: '1,000 AED Note', value: d1000, percentage: (d1000 / safeTotal) * 100, color: 'bg-brand-dark' },
@@ -188,6 +206,7 @@ export default function Dashboard() {
   };
 
   const liveComposition = getLiveComposition();
+  const totalCombinedVaultBalance = ceoVaultBalance + reserveVaultBalance;
 
   const trendData = cashFlowTrend?.length > 0 
     ? cashFlowTrend 
@@ -249,14 +268,24 @@ export default function Dashboard() {
           <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
           <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-brand-light/30 rounded-full blur-2xl"></div>
           <div className="relative z-10">
-            <p className="text-white/60 text-xs font-medium mb-1.5 tracking-widest uppercase">CEO Vault Balance</p>
+            <p className="text-white/60 text-xs font-medium mb-1.5 tracking-widest uppercase">Total Vault Balance</p>
             <h3 className="text-4xl font-semibold tracking-tighter">
               <span className="text-xl text-white/50 font-light mr-1 tracking-normal">AED</span>
-              {vaultBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}
+              {totalCombinedVaultBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}
             </h3>
-            <div className="mt-5 flex items-center gap-2 text-xs font-medium text-emerald-300 bg-emerald-400/10 backdrop-blur-md w-max px-3 py-1.5 rounded-xl border border-emerald-400/20">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-              Live Data Connected
+            
+            <div className="mt-5 flex flex-col gap-3">
+              <div className="flex items-center gap-2 text-xs font-medium text-emerald-300 bg-emerald-400/10 backdrop-blur-md w-max px-3 py-1.5 rounded-xl border border-emerald-400/20">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                Live Data Connected
+              </div>
+              
+              {/* Breakdown Row */}
+              <div className="flex items-center gap-3 text-[11px] font-medium text-white/70 bg-white/5 px-3 py-2 rounded-xl border border-white/10 w-max">
+                <span>CEO: <span className="text-white tracking-wide">AED {ceoVaultBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></span>
+                <span className="w-px h-3 bg-white/20"></span>
+                <span>Reserve: <span className="text-white tracking-wide">AED {reserveVaultBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></span>
+              </div>
             </div>
           </div>
         </div>
