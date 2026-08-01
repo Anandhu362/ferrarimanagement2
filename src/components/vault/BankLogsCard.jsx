@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../../config/api';
 import PremiumCalendar from '../shared/PremiumCalendar';
 
-export default function BankLogsCard({ refreshTrigger }) {
+// ✅ NEW: Added onDateChange to the component props to communicate with the parent
+export default function BankLogsCard({ refreshTrigger, onDateChange }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -56,8 +57,19 @@ export default function BankLogsCard({ refreshTrigger }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDates, refreshTrigger]);
 
+  // ✅ UPDATED: Handle date selection and notify the parent component
   const handleDateSelect = (dates) => {
     setSelectedDates(dates);
+    
+    // Notify the parent (BankVaultOverview) so it can fetch the specific date's snapshot
+    if (onDateChange) {
+        // If a date is selected, pass the first date string. If cleared, pass null.
+        if (dates && dates.length > 0) {
+            onDateChange(dates[0]);
+        } else {
+            onDateChange(null);
+        }
+    }
   };
 
   // ✅ ROBUST FRONTEND FILTERING

@@ -51,4 +51,11 @@ export const updateExpenseDate = async (id, newDate, branchId) => {
   return await api.patch(`/api/expenses/${id}/date`, { newDate, branchId });
 };
 
+// ✅ UPDATED: Exported API function to fetch the bank closing balance for a specific date
+export const getBankBalanceForDate = async (branchId, date) => {
+  return await api.get('/api/vault/closing-balance', { 
+    params: { branchId, date } 
+  });
+};
+
 export default api;

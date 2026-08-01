@@ -1,29 +1,30 @@
 // frontend/src/pages/vault/BankVaultOverview.jsx
 import React, { useState, useEffect } from 'react';
-import api from '../../config/api'; 
-import BankTransactionForm from '../../components/vault/BankTransactionForm'; // ✅ IMPORTED NEW FORM
-import BankLogsCard from '../../components/vault/BankLogsCard'; // ✅ IMPORTED NEW LOGS CARD
+import api, { getBankBalanceForDate } from '../../config/api'; // ✅ IMPORTED NEW API HELPER
+import BankTransactionForm from '../../components/vault/BankTransactionForm'; 
+import BankLogsCard from '../../components/vault/BankLogsCard'; 
 
 export default function BankVaultOverview() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   
-  // ✅ NEW: Toggle this state to trigger child component re-fetches
+  // Toggle this state to trigger child component re-fetches
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // ✅ MOVED FUNCTION OUTSIDE useEffect so it can be called manually
+  // ✅ NEW: State for tracking the selected date and its fetched snapshot data
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [snapshotData, setSnapshotData] = useState(null);
+
+  // Fetch overarching persistent total balance
   const fetchBankVaultData = async () => {
     try {
-      // Grab the active branch to ensure we don't fetch global sums
       const activeBranch = localStorage.getItem('active_branch');
-      
       if (!activeBranch) {
         console.warn("No active branch selected.");
         setLoading(false);
         return;
       }
       
-      // Fetches data from the new Bank Summary endpoint
       const response = await api.get(`/api/vault/bank-summary?branchId=${encodeURIComponent(activeBranch)}`);
       const result = response.data; 
 
@@ -37,13 +38,39 @@ export default function BankVaultOverview() {
     }
   };
 
+  // ✅ NEW: Fetch the specific date's closing balance when selectedDate changes
+  useEffect(() => {
+    const fetchDateSnapshot = async () => {
+      // If the user clears the filter, reset the snapshot
+      if (!selectedDate) {
+        setSnapshotData(null);
+        return;
+      }
+
+      try {
+        const activeBranch = localStorage.getItem('active_branch');
+        if (!activeBranch) return;
+
+        const response = await getBankBalanceForDate(activeBranch, selectedDate);
+        
+        if (response.data.success) {
+          setSnapshotData(response.data);
+        }
+      } catch (error) {
+        console.error("Error fetching bank snapshot data:", error);
+        setSnapshotData(null);
+      }
+    };
+
+    fetchDateSnapshot();
+  }, [selectedDate, refreshTrigger]); // Re-fetches if a manual trx is added for that date
+
   useEffect(() => {
     fetchBankVaultData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshTrigger]); // ✅ Re-fetch when trigger changes
+  }, [refreshTrigger]); 
 
   const handleTransactionSuccess = () => {
-    // Increment trigger to refetch both the balance and the logs component
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -81,21 +108,59 @@ export default function BankVaultOverview() {
         <div className="xl:col-span-5 space-y-8">
           
           {/* Main Balance Card */}
-          <div className="bg-brand-dark rounded-[2rem] p-8 text-white relative overflow-hidden shadow-xl flex flex-col justify-center">
-            <div className="absolute -right-12 -top-12 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+          <div className={`bg-brand-dark rounded-[2rem] p-8 text-white relative overflow-hidden shadow-xl flex flex-col justify-center transition-all duration-500 ${snapshotData ? 'min-h-[380px]' : 'min-h-[280px]'}`}>
+            <div className="absolute -right-12 -top-12 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
             
-            <div className="relative z-10">
-              <p className="text-white/60 text-xs font-semibold mb-2 tracking-widest uppercase">Total Banked Balance</p>
-              <h3 className="text-4xl lg:text-5xl font-semibold tracking-tighter mb-8">
-                <span className="text-2xl text-white/50 font-light mr-2">AED</span>
-                {totalBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}
-              </h3>
+            <div className="relative z-10 flex flex-col h-full justify-between">
+              <div>
+                <p className="text-white/60 text-xs font-semibold mb-2 tracking-widest uppercase">Total Banked Balance</p>
+                <h3 className="text-4xl lg:text-5xl font-semibold tracking-tighter">
+                  <span className="text-2xl text-white/50 font-light mr-2">AED</span>
+                  {totalBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                </h3>
+              </div>
               
-              <div className="space-y-4 pt-6 border-t border-white/10">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-white/60 font-light">Last Reconciliation</span>
-                  <span className="font-medium text-white">Today, 09:00 AM</span>
+              {/* ✅ NEW: Dynamic Selected Date Snapshot UI */}
+              {snapshotData && selectedDate && (
+                <div className="mt-8 p-5 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-inner">
+                  <div className="flex items-center gap-2 mb-4">
+                    <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-white/80 text-[11px] font-semibold uppercase tracking-widest">
+                      Closing Balance: {new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-between items-end border-b border-white/10 pb-4 mb-4">
+                    <h4 className="text-2xl font-medium text-white tracking-tight">
+                      <span className="text-sm text-white/50 font-light mr-1">AED</span>
+                      {parseFloat(snapshotData.closingBalance).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                    </h4>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-emerald-500/10 px-3 py-2 rounded-xl border border-emerald-500/20 flex flex-col justify-center">
+                      <p className="text-emerald-400/80 text-[10px] uppercase tracking-wider mb-1 font-semibold flex items-center gap-1">
+                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                         Inflow
+                      </p>
+                      <p className="text-emerald-300 text-sm font-bold tracking-tight">+{parseFloat(snapshotData.dayInflow).toLocaleString()}</p>
+                    </div>
+                    <div className="flex-1 bg-rose-500/10 px-3 py-2 rounded-xl border border-rose-500/20 flex flex-col justify-center">
+                      <p className="text-rose-400/80 text-[10px] uppercase tracking-wider mb-1 font-semibold flex items-center gap-1">
+                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                         Outflow
+                      </p>
+                      <p className="text-rose-300 text-sm font-bold tracking-tight">-{parseFloat(snapshotData.dayOutflow).toLocaleString()}</p>
+                    </div>
+                  </div>
                 </div>
+              )}
+
+              <div className="pt-6 mt-6 border-t border-white/10 flex justify-between items-center text-sm">
+                <span className="text-white/60 font-light">Last Reconciliation</span>
+                <span className="font-medium text-white">Today, 09:00 AM</span>
               </div>
             </div>
           </div>
@@ -117,11 +182,14 @@ export default function BankVaultOverview() {
 
         {/* RIGHT COLUMN: Vertical Log Container */}
         <div className="xl:col-span-7 h-full">
-          <BankLogsCard refreshTrigger={refreshTrigger} />
+          {/* ✅ NEW: Pass onDateChange to BankLogsCard to receive the selected calendar date */}
+          <BankLogsCard 
+            refreshTrigger={refreshTrigger} 
+            onDateChange={(date) => setSelectedDate(date)} 
+          />
         </div>
         
       </div>
-
     </div>
   );
 }
