@@ -41,4 +41,14 @@ export const reverseReserveInflow = async (payload) => {
   return await api.post(ENDPOINTS.RESERVE_REVERSAL, payload);
 };
 
+// ✅ UPDATED: Exported API function to handle updating the Inflow Date (targeting live_ledger)
+export const updateInflowDate = async (id, newDate, branchId) => {
+  return await api.patch(`/api/inflow/${id}/date`, { newDate, branchId });
+};
+
+// ✅ NEW: Exported API function to handle updating the Expense Date (targeting live_ledger)
+export const updateExpenseDate = async (id, newDate, branchId) => {
+  return await api.patch(`/api/expenses/${id}/date`, { newDate, branchId });
+};
+
 export default api;

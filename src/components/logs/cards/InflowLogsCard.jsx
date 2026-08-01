@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import EditInflowDateModal from '../../inflow/EditInflowDateModal';
 
 export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExpand }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
+  
+  // Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedInflow, setSelectedInflow] = useState(null);
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false); 
@@ -131,6 +136,17 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
     return desc;
   };
 
+  const handleEditClick = (e, trx) => {
+    e.stopPropagation();
+    // Map the properties correctly for the modal
+    setSelectedInflow({
+      ...trx,
+      companyName: extractCompanyName(trx.description),
+      invoiceNumber: extractInvoiceNumber(trx)
+    });
+    setIsEditModalOpen(true);
+  };
+
   return (
     <div className={`bg-white rounded-[2rem] border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] overflow-hidden animate-in slide-in-from-bottom-4 duration-500 flex flex-col transition-all ${
       isExpanded ? 'h-[75vh]' : 'min-h-[500px] h-[55vh]'
@@ -177,7 +193,7 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
             {isExpanded ? (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 9V5m0 4H5m4 0l-5-5m11 5V5m0 4h4m-4 0l5-5M9 15v4m0-4H5m4 0l5 5m11-5v4m0-4h4m-4 0l5 5" /></svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-4v4m0 0h-4m4 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5 5" /></svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-4v4m0 0h-4m4 0l-5-5M4 16v4m0 0h4m-4 0l-5-5m11 5v-4m0 4h-4m4 0l-5 5" /></svg>
             )}
           </button>
         </div>
@@ -209,12 +225,14 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                 <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Invoice</th>
                 <th className="px-6 py-4 text-right whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Amount (AED)</th>
                 <th className="px-6 py-4 text-center whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Status</th>
+                {/* ACTIONS HEADER */}
+                <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/80 text-sm">
               {!filteredData || filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
+                  <td colSpan="6" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
@@ -279,6 +297,19 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                           {trx.status || 'COMPLETED'}
                         </span>
                       </td>
+
+                      {/* EDIT ACTION BUTTON */}
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <button
+                          onClick={(e) => handleEditClick(e, trx)}
+                          className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          title="Edit Date"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -287,6 +318,21 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
           </table>
         )}
       </div>
+
+      {/* Edit Inflow Date Modal */}
+      <EditInflowDateModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedInflow(null);
+        }}
+        inflow={selectedInflow}
+        onSuccess={() => {
+          setIsEditModalOpen(false);
+          // Assuming a full reload to fetch new data or trigger a parent update
+          if (window) window.location.reload(); 
+        }}
+      />
     </div>
   );
 }

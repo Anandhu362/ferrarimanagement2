@@ -1,8 +1,8 @@
-// frontend/src/components/expenses/EditExpenseDateModal.jsx
+// frontend/src/components/inflow/EditInflowDateModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../config/api';
 
-export default function EditExpenseDateModal({ isOpen, onClose, expense, onSuccess }) {
+export default function EditInflowDateModal({ isOpen, onClose, inflow, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -16,10 +16,9 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
 
   // Initialize date and extract original time when modal opens
   useEffect(() => {
-    if (isOpen && expense) {
+    if (isOpen && inflow) {
       try {
-        // Robust fallback to catch various date fields
-        const dateObj = new Date(expense.createdAt || expense.timestamp || expense.date);
+        const dateObj = new Date(inflow.createdAt || inflow.timestamp || inflow.date);
         if (!isNaN(dateObj.getTime())) {
           setSelectedDate(dateObj);
           setCurrentMonth(dateObj);
@@ -38,7 +37,7 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
       setError(null);
       setShowCalendar(false);
     }
-  }, [isOpen, expense]);
+  }, [isOpen, inflow]);
 
   // Handle clicking outside the custom calendar to close it
   useEffect(() => {
@@ -55,7 +54,7 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
     };
   }, [showCalendar]);
 
-  if (!isOpen || !expense) return null;
+  if (!isOpen || !inflow) return null;
 
   // --- Calendar Helper Functions ---
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
@@ -89,7 +88,7 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
     setError(null);
 
     try {
-      // ✅ Retrieve the active branch from localStorage
+      // ✅ Retrieve the branchId from localStorage
       const activeBranch = localStorage.getItem('active_branch');
       if (!activeBranch) throw new Error('Active branch not found. Please log in again.');
       if (!selectedDate) throw new Error('Please select a valid date.');
@@ -101,11 +100,10 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
       
       const combinedDateTimeString = `${year}-${month}-${day} ${originalTime}`;
 
-      // ✅ Send branchId, id, and newDate in the body to match the expenseController
-      const response = await api.put('/api/expenses/update-date', {
-        branchId: activeBranch,
-        id: expense.id,
-        newDate: combinedDateTimeString
+      // ✅ Call the newly created backend patch route and include branchId
+      const response = await api.patch(`/api/inflow/${inflow.id}/date`, {
+        newDate: combinedDateTimeString,
+        branchId: activeBranch
       });
 
       if (response.data.success) {
@@ -136,12 +134,12 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
         {/* Header */}
         <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-b border-slate-100/60 rounded-t-[2rem]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 className="text-slate-800 font-semibold text-lg tracking-tight">Edit Expense Date</h3>
+            <h3 className="text-slate-800 font-semibold text-lg tracking-tight">Edit Inflow Date</h3>
           </div>
           <button 
             onClick={onClose}
@@ -166,9 +164,11 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
           {/* Context Card */}
           <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-6">
             <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Target Transaction</p>
-            <p className="text-sm font-medium text-slate-800 line-clamp-2">{expense.description}</p>
+            <p className="text-sm font-medium text-slate-800 line-clamp-2">
+              {inflow.companyName} {inflow.invoiceNumber && `(INV: ${inflow.invoiceNumber})`}
+            </p>
             <p className="text-sm font-semibold text-slate-900 mt-2">
-              Amount: <span className="text-rose-500">- AED {parseFloat(expense.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+              Amount: <span className="text-emerald-500">+ AED {parseFloat(inflow.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
             </p>
           </div>
 
@@ -180,7 +180,7 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
               <button
                 type="button"
                 onClick={() => setShowCalendar(!showCalendar)}
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm flex items-center justify-between hover:bg-slate-50"
+                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm flex items-center justify-between hover:bg-slate-50"
               >
                 <span className="font-medium">{formatDisplayDate(selectedDate)}</span>
                 <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,7 +280,7 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
                         setCurrentMonth(today);
                         setShowCalendar(false);
                       }}
-                      className="text-[11px] font-bold text-blue-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
+                      className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 uppercase tracking-widest transition-colors"
                     >
                       Select Today
                     </button>
@@ -305,7 +305,7 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
             type="submit"
             form="edit-date-form"
             disabled={loading || !selectedDate}
-            className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shadow-sm shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-sm shadow-emerald-600/20 disabled:opacity-50 flex items-center gap-2"
           >
             {loading ? (
               <>
