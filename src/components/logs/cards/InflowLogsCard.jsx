@@ -43,8 +43,10 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
       const amountMatch = String(trx.amount || '').includes(lowerQuery);
       // Check invoice using the new extractor
       const invoiceMatch = extractInvoiceNumber(trx).toLowerCase().includes(lowerQuery);
+      // Check agent name
+      const agentMatch = (trx.agentName || '').toLowerCase().includes(lowerQuery);
       
-      return descMatch || amountMatch || invoiceMatch;
+      return descMatch || amountMatch || invoiceMatch || agentMatch;
     });
   }, [inflowsData, searchQuery]);
 
@@ -277,6 +279,41 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                                 Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
                               </span>
                             )}
+
+                            {/* ✅ NEW: Agent Tracing Subtitle Logic */}
+                            {(() => {
+                              // 1. Handle Multi-Agent Group Entries
+                              if (trx.sourceAgents && Array.isArray(trx.sourceAgents) && trx.sourceAgents.length > 1) {
+                                const agentText = trx.sourceAgents.join(', ');
+                                return (
+                                  <span 
+                                    className="text-[10px] text-purple-500/90 font-semibold mt-0.5 tracking-wide flex items-center gap-1 group-hover:text-purple-600 transition-colors cursor-help" 
+                                    title={`Agents: ${agentText}`} // Tooltip shows all names on hover
+                                  >
+                                    <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    Group Entry ({trx.sourceAgents.length} Agents)
+                                  </span>
+                                );
+                              }
+                              
+                              // 2. Handle Single Agent Entries (Fallback to array[0] or legacy agentName string)
+                              const singleAgentName = (trx.sourceAgents && trx.sourceAgents[0]) || trx.agentName;
+                              
+                              if (singleAgentName && singleAgentName !== 'Desk Entry') {
+                                return (
+                                  <span className="text-[10px] text-blue-500/80 font-medium mt-0.5 tracking-wide flex items-center gap-1 group-hover:text-blue-600 transition-colors">
+                                    <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    Entry by {singleAgentName}
+                                  </span>
+                                );
+                              }
+                              
+                              return null;
+                            })()}
                           </div>
                         </div>
                       </td>
