@@ -1,3 +1,4 @@
+// frontend/src/components/exchange/ReserveExchangeForm.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
 
@@ -7,9 +8,8 @@ const RESERVE_TIERS = [
   { value: 1, label: '1', type: 'coin' } // Represents Coins/1 AED
 ];
 
+// ✅ UPDATED: Restricted to only CEO Vault
 const VAULT_OPTIONS = [
-  { value: 'none', label: 'Manual (External / Cash Drawer)' },
-  { value: 'accountant', label: 'Accountant Vault' },
   { value: 'ceo', label: 'CEO Vault' }
 ];
 
@@ -18,8 +18,8 @@ export default function ReserveExchangeForm({ onTransactionSuccess }) {
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState({ 10: '', 5: '', 1: '' });
   
-  // New States for Cross-Vault Routing
-  const [targetVault, setTargetVault] = useState('none');
+  // ✅ UPDATED: Default targetVault initialized to 'ceo'
+  const [targetVault, setTargetVault] = useState('ceo');
   const [isVaultDropdownOpen, setIsVaultDropdownOpen] = useState(false);
   
   const [vaultStock, setVaultStock] = useState({ 10: 0, 5: 0, 1: 0 });
@@ -109,7 +109,7 @@ export default function ReserveExchangeForm({ onTransactionSuccess }) {
       // Reset Form
       setDescription('');
       setNotes({ 10: '', 5: '', 1: '' });
-      setTargetVault('none');
+      setTargetVault('ceo'); // ✅ UPDATED: Reset back to 'ceo'
       fetchReserveStock(); // Refresh local stock limits
       
       // Notify parent to refresh other components if necessary
