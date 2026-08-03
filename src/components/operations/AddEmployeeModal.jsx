@@ -72,17 +72,14 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
     const newErrors = {};
     const sanitized = { ...formData };
 
+    // ONLY Name and Nationality are strictly required now
     if (!sanitized.name.trim()) newErrors.name = 'Full name is required';
     sanitized.name = sanitized.name.trim().toUpperCase();
 
     if (!sanitized.nationality.trim()) newErrors.nationality = 'Nationality is required';
     sanitized.nationality = sanitized.nationality.trim().toUpperCase();
 
-    if (!sanitized.emiratesIdExpiry) newErrors.emiratesIdExpiry = 'EID Expiry date is required';
-    if (!sanitized.workPermitExpiry) newErrors.workPermitExpiry = 'Work Permit Expiry date is required';
-    if (!sanitized.passportExpiry) newErrors.passportExpiry = 'Passport Expiry date is required';
-    if (!sanitized.healthInsuranceExpiry) newErrors.healthInsuranceExpiry = 'Insurance Expiry date is required';
-
+    // Sanitize optional fields if they exist
     sanitized.mobile = sanitized.mobile.trim();
     sanitized.emiratesIdNumber = sanitized.emiratesIdNumber.trim();
     sanitized.workPermitNumber = sanitized.workPermitNumber.trim();
@@ -159,18 +156,18 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
                     <input type="text" name="emiratesIdNumber" value={formData.emiratesIdNumber} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="784-XXXX-XXXXXXX-X" className="w-full bg-white border border-slate-200 text-sm font-medium text-slate-900 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 transition-all" />
                   </div>
                   <div className="relative">
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">EID Expiry Date <span className="text-rose-500">*</span></label>
+                    {/* ✅ UPDATED: Removed Mandatory Asterisk */}
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">EID Expiry Date (Optional)</label>
                     <button 
                       type="button"
                       onKeyDown={handleKeyDown}
                       onClick={() => setOpenCalendar(openCalendar === 'eid' ? null : 'eid')}
-                      className={`w-full flex justify-between items-center bg-white border ${errors.emiratesIdExpiry ? 'border-rose-300 text-rose-500' : 'border-slate-200 text-slate-900'} text-sm font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 hover:bg-slate-50 transition-all text-left`}
+                      className={`w-full flex justify-between items-center bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 hover:bg-slate-50 transition-all text-left`}
                     >
                       {formData.emiratesIdExpiry || <span className="text-slate-400">Select Date</span>}
                       <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </button>
                     <PremiumCalendar selectedDates={formData.emiratesIdExpiry ? [formData.emiratesIdExpiry] : []} onDateSelect={(dates) => handleDateChange('emiratesIdExpiry', dates)} isOpen={openCalendar === 'eid'} onClose={() => setOpenCalendar(null)} />
-                    {errors.emiratesIdExpiry && <p className="text-[10px] text-rose-500 mt-1 font-medium">{errors.emiratesIdExpiry}</p>}
                   </div>
                 </div>
 
@@ -181,18 +178,18 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
                     <input type="text" name="workPermitNumber" value={formData.workPermitNumber} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="e.g. 121751570" className="w-full bg-white border border-slate-200 text-sm font-medium text-slate-900 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 transition-all" />
                   </div>
                   <div className="relative">
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Work Permit Expiry Date <span className="text-rose-500">*</span></label>
+                    {/* ✅ UPDATED: Removed Mandatory Asterisk */}
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Work Permit Expiry Date (Optional)</label>
                     <button 
                       type="button"
                       onKeyDown={handleKeyDown}
                       onClick={() => setOpenCalendar(openCalendar === 'wp' ? null : 'wp')}
-                      className={`w-full flex justify-between items-center bg-white border ${errors.workPermitExpiry ? 'border-rose-300 text-rose-500' : 'border-slate-200 text-slate-900'} text-sm font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 hover:bg-slate-50 transition-all text-left`}
+                      className={`w-full flex justify-between items-center bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 hover:bg-slate-50 transition-all text-left`}
                     >
                       {formData.workPermitExpiry || <span className="text-slate-400">Select Date</span>}
                       <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </button>
                     <PremiumCalendar selectedDates={formData.workPermitExpiry ? [formData.workPermitExpiry] : []} onDateSelect={(dates) => handleDateChange('workPermitExpiry', dates)} isOpen={openCalendar === 'wp'} onClose={() => setOpenCalendar(null)} />
-                    {errors.workPermitExpiry && <p className="text-[10px] text-rose-500 mt-1 font-medium">{errors.workPermitExpiry}</p>}
                   </div>
                 </div>
 
@@ -203,18 +200,18 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
                     <input type="text" name="passportNumber" value={formData.passportNumber} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="e.g. S7874540" className="w-full bg-white border border-slate-200 text-sm font-medium text-slate-900 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 transition-all uppercase" />
                   </div>
                   <div className="relative">
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Passport Expiry Date <span className="text-rose-500">*</span></label>
+                    {/* ✅ UPDATED: Removed Mandatory Asterisk */}
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Passport Expiry Date (Optional)</label>
                     <button 
                       type="button"
                       onKeyDown={handleKeyDown}
                       onClick={() => setOpenCalendar(openCalendar === 'pp' ? null : 'pp')}
-                      className={`w-full flex justify-between items-center bg-white border ${errors.passportExpiry ? 'border-rose-300 text-rose-500' : 'border-slate-200 text-slate-900'} text-sm font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 hover:bg-slate-50 transition-all text-left`}
+                      className={`w-full flex justify-between items-center bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 hover:bg-slate-50 transition-all text-left`}
                     >
                       {formData.passportExpiry || <span className="text-slate-400">Select Date</span>}
                       <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </button>
                     <PremiumCalendar selectedDates={formData.passportExpiry ? [formData.passportExpiry] : []} onDateSelect={(dates) => handleDateChange('passportExpiry', dates)} isOpen={openCalendar === 'pp'} onClose={() => setOpenCalendar(null)} />
-                    {errors.passportExpiry && <p className="text-[10px] text-rose-500 mt-1 font-medium">{errors.passportExpiry}</p>}
                   </div>
                 </div>
 
@@ -225,18 +222,18 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
                     <input type="text" name="healthInsuranceNumber" value={formData.healthInsuranceNumber} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="e.g. INS-998822" className="w-full bg-white border border-slate-200 text-sm font-medium text-slate-900 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 transition-all uppercase" />
                   </div>
                   <div className="relative">
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Insurance Expiry Date <span className="text-rose-500">*</span></label>
+                    {/* ✅ UPDATED: Removed Mandatory Asterisk */}
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Insurance Expiry Date (Optional)</label>
                     <button 
                       type="button"
                       onKeyDown={handleKeyDown}
                       onClick={() => setOpenCalendar(openCalendar === 'ins' ? null : 'ins')}
-                      className={`w-full flex justify-between items-center bg-white border ${errors.healthInsuranceExpiry ? 'border-rose-300 text-rose-500' : 'border-slate-200 text-slate-900'} text-sm font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 hover:bg-slate-50 transition-all text-left`}
+                      className={`w-full flex justify-between items-center bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 hover:bg-slate-50 transition-all text-left`}
                     >
                       {formData.healthInsuranceExpiry || <span className="text-slate-400">Select Date</span>}
                       <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </button>
                     <PremiumCalendar selectedDates={formData.healthInsuranceExpiry ? [formData.healthInsuranceExpiry] : []} onDateSelect={(dates) => handleDateChange('healthInsuranceExpiry', dates)} isOpen={openCalendar === 'ins'} onClose={() => setOpenCalendar(null)} />
-                    {errors.healthInsuranceExpiry && <p className="text-[10px] text-rose-500 mt-1 font-medium">{errors.healthInsuranceExpiry}</p>}
                   </div>
                 </div>
 
