@@ -20,12 +20,12 @@ import Dashboard from './pages/dashboard/Dashboard';
 import MassInflow from './pages/cash-inflow/MassInflow'; 
 import VaultOverview from './pages/vault/VaultOverview';
 import AccountantVault from './pages/vault/AccountantVault';
-import BankVaultOverview from './pages/vault/BankVaultOverview'; // ✅ NEW: Import Bank Vault
+import BankVaultOverview from './pages/vault/BankVaultOverview';
 import ExpenseForm from './pages/expenses/ExpenseForm';
 import PettyCashManager from './pages/petty-cash/PettyCashManager';
 import LogsPage from './pages/logs/LogsPage'; 
 import ExchangePage from './pages/exchange/ExchangePage'; 
-import SettingsPage from './pages/settings/SettingsPage'; // ✅ NEW: Import SettingsPage
+import SettingsPage from './pages/settings/SettingsPage'; 
 
 // Operations pages
 import SalesEntry from './pages/sales/SalesEntry'; 
@@ -33,6 +33,7 @@ import OrderHistory from './pages/orders/OrderHistory';
 import InventoryPage from './pages/inventory/InventoryPage';
 import CustomerManagement from './pages/customers/CustomerManagement'; 
 import DeliveryFormGen from './pages/orders/DeliveryFormGen'; 
+import EmployeeManagement from './pages/operations/EmployeeManagement'; // ✅ NEW: Import Employee Management
 
 function App() {
   const [user, setUser] = useState(null);
@@ -105,14 +106,15 @@ function App() {
             <Route path="/inflow" element={<MassInflow />} /> 
             <Route path="/vault" element={<VaultOverview />} />
             <Route path="/accountant-vault" element={<AccountantVault />} />
-            <Route path="/bank-vault" element={<BankVaultOverview />} /> {/* ✅ NEW: Bank Vault Route */}
+            <Route path="/bank-vault" element={<BankVaultOverview />} /> 
             <Route path="/expenses" element={<ExpenseForm />} />
             <Route path="/petty-cash" element={<PettyCashManager />} />
             <Route path="/logs" element={<LogsPage />} /> 
             <Route path="/exchange" element={<ExchangePage />} /> 
-            
-            {/* ✅ NEW: Settings route added to the protected layout */}
             <Route path="/settings" element={<SettingsPage />} /> 
+            
+            {/* ✅ NEW: Protected Employee Management Route */}
+            <Route path="/operations/employees" element={<EmployeeManagement />} />
           </Route>
 
           {/* Fallback route for unmatched paths */}

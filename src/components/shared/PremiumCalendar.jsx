@@ -11,11 +11,14 @@ import React, { useState, useEffect } from 'react';
  */
 export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOpen, onClose, children }) {
   const [viewDate, setViewDate] = useState(new Date());
+  // 'date' (days grid), 'month' (12 months grid), 'year' (decade grid)
+  const [viewMode, setViewMode] = useState('date'); 
 
-  // Sync viewDate when the calendar opens to the first selected date (if any)
+  // Sync viewDate and reset view mode when the calendar opens
   useEffect(() => {
     if (isOpen) {
       setViewDate(selectedDates.length > 0 ? new Date(selectedDates[0]) : new Date());
+      setViewMode('date'); 
     }
   }, [isOpen, selectedDates]);
 
@@ -24,65 +27,111 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
   const currentYear = viewDate.getFullYear();
   const currentMonth = viewDate.getMonth();
 
-  // Calendar Logic
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const emptyDays = Array.from({ length: firstDayOfMonth }, (_, i) => i);
-
-  const handlePrevMonth = (e) => {
-    e.stopPropagation();
-    setViewDate(new Date(currentYear, currentMonth - 1, 1));
+  // Dynamic Header Label
+  const getHeaderLabel = () => {
+    if (viewMode === 'date') return viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    if (viewMode === 'month') return currentYear.toString();
+    if (viewMode === 'year') {
+      const start = Math.floor(currentYear / 12) * 12;
+      return `${start} - ${start + 11}`;
+    }
   };
 
-  const handleNextMonth = (e) => {
+  // Header Click Handler (Zoom out)
+  const handleHeaderClick = (e) => {
     e.stopPropagation();
-    setViewDate(new Date(currentYear, currentMonth + 1, 1));
+    if (viewMode === 'date') setViewMode('year'); // Fast jump to years
+    else if (viewMode === 'month') setViewMode('year');
+    else setViewMode('date'); // Reset if clicked again
   };
 
-  const handleSelect = (e, day) => {
+  // Navigation Handlers based on View Mode
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    const d = new Date(viewDate);
+    if (viewMode === 'date') d.setMonth(d.getMonth() - 1);
+    else if (viewMode === 'month') d.setFullYear(d.getFullYear() - 1);
+    else if (viewMode === 'year') d.setFullYear(d.getFullYear() - 12);
+    setViewDate(d);
+  };
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    const d = new Date(viewDate);
+    if (viewMode === 'date') d.setMonth(d.getMonth() + 1);
+    else if (viewMode === 'month') d.setFullYear(d.getFullYear() + 1);
+    else if (viewMode === 'year') d.setFullYear(d.getFullYear() + 12);
+    setViewDate(d);
+  };
+
+  // Selection Handlers for Fast Zoom-in
+  const handleYearSelect = (e, year) => {
+    e.stopPropagation();
+    const d = new Date(viewDate);
+    d.setFullYear(year);
+    setViewDate(d);
+    setViewMode('month'); // Drop down to month view
+  };
+
+  const handleMonthSelect = (e, monthIndex) => {
+    e.stopPropagation();
+    const d = new Date(viewDate);
+    d.setMonth(monthIndex);
+    setViewDate(d);
+    setViewMode('date'); // Drop down to day view
+  };
+
+  const handleDaySelect = (e, day) => {
+    e.stopPropagation();
     const m = String(currentMonth + 1).padStart(2, '0');
     const d = String(day).padStart(2, '0');
     const dateString = `${currentYear}-${m}-${d}`;
     
     let newSelectedDates;
 
-    // Check if Ctrl (Windows) or Cmd (Mac) is held down
     if (e.ctrlKey || e.metaKey) {
-      // MULTI-SELECT MODE: Toggle logic
       if (selectedDates.includes(dateString)) {
         newSelectedDates = selectedDates.filter(date => date !== dateString);
       } else {
         newSelectedDates = [...selectedDates, dateString];
       }
     } else {
-      // SINGLE-SELECT MODE: Replace array with just this date
       newSelectedDates = [dateString];
     }
     
     onDateSelect(newSelectedDates);
-    // Note: We deliberately DO NOT call onClose() here anymore. 
-    // This keeps the calendar open so the user can select multiple dates.
   };
 
-  // Helper to check today
+  // Setup for Days Grid
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const emptyDays = Array.from({ length: firstDayOfMonth }, (_, i) => i);
   const todayStr = new Date().toISOString().split('T')[0];
+
+  // Setup for Years Grid (12-year window)
+  const startYear = Math.floor(currentYear / 12) * 12;
+  const years = Array.from({length: 12}, (_, i) => startYear + i);
+  
+  // Setup for Months Grid
+  const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   return (
     <>
-      {/* Invisible Backdrop to handle click-outside */}
+      {/* Invisible Backdrop */}
       <div 
-        className="fixed inset-0 z-[60] bg-transparent" 
+        className="fixed inset-0 z-[100] bg-transparent" 
         onClick={onClose}
       ></div>
       
       {/* Calendar Box */}
-      <div className="absolute top-[calc(100%+12px)] right-0 p-5 bg-white rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100/80 z-[70] w-[300px] animate-in slide-in-from-top-2 fade-in duration-200">
+      <div className="absolute top-[calc(100%+12px)] right-0 p-5 bg-white rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100/80 z-[110] w-[300px] animate-in slide-in-from-top-2 fade-in duration-200">
         
-        {/* Month & Year Navigation */}
+        {/* Navigation Header */}
         <div className="flex justify-between items-center mb-5">
           <button 
-            onClick={handlePrevMonth}
+            type="button" 
+            onClick={handlePrev}
             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,12 +139,17 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
             </svg>
           </button>
 
-          <div className="text-[15px] font-bold text-slate-900 tracking-tight">
-            {viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-          </div>
+          <button 
+            type="button"
+            onClick={handleHeaderClick}
+            className="text-[15px] font-bold text-slate-900 tracking-tight hover:text-brand-light transition-colors px-3 py-1 rounded-lg hover:bg-slate-50"
+          >
+            {getHeaderLabel()}
+          </button>
 
           <button 
-            onClick={handleNextMonth}
+            type="button" 
+            onClick={handleNext}
             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,51 +158,102 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
           </button>
         </div>
 
-        {/* Days of Week Header */}
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-            <div key={day} className="text-[10px] font-bold text-slate-400 text-center uppercase tracking-wider">
-              {day}
-            </div>
-          ))}
-        </div>
-
-        {/* Calendar Days Grid */}
-        <div className="grid grid-cols-7 gap-1">
-          {emptyDays.map((_, i) => (
-            <div key={`empty-${i}`} className="w-9 h-9"></div>
-          ))}
-
-          {days.map((day) => {
-            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isSelected = selectedDates.includes(dateStr);
-            const isToday = todayStr === dateStr;
-
-            return (
-              <button
-                key={day}
-                onClick={(e) => { e.stopPropagation(); handleSelect(e, day); }}
-                className={`w-9 h-9 flex items-center justify-center rounded-full text-xs font-medium transition-all ${
-                  isSelected 
+        {/* ======================= */}
+        {/* VIEW: YEARS GRID        */}
+        {/* ======================= */}
+        {viewMode === 'year' && (
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {years.map(y => (
+              <button 
+                type="button" 
+                key={y}
+                onClick={(e) => handleYearSelect(e, y)} 
+                className={`py-3 text-sm font-semibold rounded-xl transition-colors ${
+                  y === currentYear 
                     ? 'bg-slate-900 text-white shadow-md' 
-                    : isToday 
-                      ? 'text-emerald-500 bg-emerald-50 hover:bg-emerald-100 font-bold'
-                      : 'text-slate-700 hover:bg-slate-100'
+                    : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                {day}
+                {y}
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {/* ✅ DYNAMIC FOOTER: Shows custom children (Download Button) OR standard Clear Filter */}
+        {/* ======================= */}
+        {/* VIEW: MONTHS GRID       */}
+        {/* ======================= */}
+        {viewMode === 'month' && (
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {shortMonths.map((m, i) => (
+              <button 
+                type="button" 
+                key={m}
+                onClick={(e) => handleMonthSelect(e, i)} 
+                className={`py-3 text-sm font-semibold rounded-xl transition-colors ${
+                  i === currentMonth 
+                    ? 'bg-slate-900 text-white shadow-md' 
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ======================= */}
+        {/* VIEW: DAYS GRID (Default)*/}
+        {/* ======================= */}
+        {viewMode === 'date' && (
+          <>
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                <div key={day} className="text-[10px] font-bold text-slate-400 text-center uppercase tracking-wider">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {emptyDays.map((_, i) => (
+                <div key={`empty-${i}`} className="w-9 h-9"></div>
+              ))}
+
+              {days.map((day) => {
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isSelected = selectedDates.includes(dateStr);
+                const isToday = todayStr === dateStr;
+
+                return (
+                  <button
+                    type="button" 
+                    key={day}
+                    onClick={(e) => handleDaySelect(e, day)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-full text-xs font-medium transition-all ${
+                      isSelected 
+                        ? 'bg-slate-900 text-white shadow-md' 
+                        : isToday 
+                          ? 'text-emerald-500 bg-emerald-50 hover:bg-emerald-100 font-bold'
+                          : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Footer Actions */}
         {children ? (
           children
         ) : (
           selectedDates.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-50 flex justify-center">
               <button 
+                type="button" 
                 onClick={(e) => { e.stopPropagation(); onDateSelect([]); onClose(); }}
                 className="text-[11px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-widest transition-colors"
               >
