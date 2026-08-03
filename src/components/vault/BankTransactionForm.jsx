@@ -228,6 +228,7 @@ export default function BankTransactionForm({ onSuccess }) {
             <label className="block text-sm font-medium text-slate-700">Amount (AED) *</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">AED</span>
+              {/* ✅ UPDATED: Added Tailwind classes to hide arrows and onWheel event to prevent scroll-editing */}
               <input
                 type="number"
                 step="0.01"
@@ -236,7 +237,8 @@ export default function BankTransactionForm({ onSuccess }) {
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full pl-14 pr-4 py-3 bg-[#FCFCFD] border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-brand-light focus:ring-2 focus:ring-brand-light/10 transition-all text-lg"
+                onWheel={(e) => e.target.blur()}
+                className="w-full pl-14 pr-4 py-3 bg-[#FCFCFD] border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-brand-light focus:ring-2 focus:ring-brand-light/10 transition-all text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
           </div>
