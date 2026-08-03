@@ -80,11 +80,11 @@ const ExpiryCell = ({ date, idNumber }) => {
       {/* Hidden ID Reveal Section */}
       {idNumber && (
         <div className="flex items-center justify-between mt-0.5">
-          {/* ✅ UPDATED: Darkened text from slate-400 to slate-600, increased size to 11px, bolded for better visibility */}
+          {/* Darkened text from slate-400 to slate-600, increased size to 11px, bolded for better visibility */}
           <span className="text-[11px] font-semibold text-slate-600 font-mono tracking-widest transition-all">
             {isRevealed ? idNumber : getMaskedId(idNumber)}
           </span>
-          {/* ✅ UPDATED: Darkened the default icon state from slate-300 to slate-400 */}
+          {/* Darkened the default icon state from slate-300 to slate-400 */}
           <button 
             onClick={() => setIsRevealed(!isRevealed)}
             className="text-slate-400 hover:text-brand-dark transition-colors p-0.5 rounded focus:outline-none"
@@ -138,19 +138,21 @@ export default function EmployeeListTable({ employees }) {
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            {/* ✅ UPDATED: Changed from slate-400 to slate-600, increased size to 11px, solid bg */}
             <tr className="bg-slate-50 text-slate-600 text-[11px] font-bold uppercase tracking-wider">
               <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Employee Details</th>
               <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Emirates ID</th>
               <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Work Permit</th>
               <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Passport</th>
+              {/* ✅ NEW: Added Health Insurance Column Header */}
+              <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Health Insurance</th>
               <th className="px-8 py-4 text-right whitespace-nowrap border-b border-slate-100">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100/80 text-sm">
             {filteredEmployees.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-8 py-12 text-center text-slate-500 font-medium">No employees match your search.</td>
+                {/* ✅ UPDATED: Colspan increased to 6 */}
+                <td colSpan="6" className="px-8 py-12 text-center text-slate-500 font-medium">No employees match your search.</td>
               </tr>
             ) : (
               filteredEmployees.map((emp, index) => (
@@ -163,12 +165,10 @@ export default function EmployeeListTable({ employees }) {
                         {emp.name}
                       </span>
                       <div className="flex items-center gap-2 mt-1.5">
-                        {/* ✅ UPDATED: Darkened badge text and added subtle border */}
                         <span className="text-[11px] text-slate-600 font-semibold bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-md">
                           {emp.nationality}
                         </span>
                         {emp.mobile && (
-                          /* ✅ UPDATED: Darkened mobile number text */
                           <span className="text-[11px] text-slate-500 font-medium tracking-wide">
                             {emp.mobile}
                           </span>
@@ -201,9 +201,16 @@ export default function EmployeeListTable({ employees }) {
                     />
                   </td>
 
-                  {/* 5. Actions */}
+                  {/* 5. Health Insurance Tracker - ✅ NEW */}
+                  <td className="px-8 py-5 whitespace-nowrap align-middle">
+                    <ExpiryCell 
+                      date={emp.healthInsuranceExpiry} 
+                      idNumber={emp.healthInsuranceNumber} 
+                    />
+                  </td>
+
+                  {/* 6. Actions */}
                   <td className="px-8 py-5 text-right whitespace-nowrap align-middle">
-                    {/* ✅ UPDATED: Action button text to match improved contrast */}
                     <button className="text-slate-500 hover:text-brand-dark font-semibold text-sm transition-colors px-4 py-2 rounded-xl border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm">
                       Manage
                     </button>

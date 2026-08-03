@@ -1,5 +1,5 @@
 // frontend/src/pages/operations/EmployeeManagement.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import EmployeeListTable from '../../components/operations/EmployeeListTable';
 import AddEmployeeModal from '../../components/operations/AddEmployeeModal';
 import api from '../../config/api'; // Import your configured axios instance
@@ -9,9 +9,12 @@ export default function EmployeeManagement() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // ✅ NEW: Added strict submission lock and premium modal state
+  // UI State for loading spinner and modals
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' });
+  
+  // ✅ NEW: Synchronous memory lock to prevent rapid double-click API calls
+  const submitLock = useRef(false);
 
   // Fetch real data from Backend / Firestore
   const fetchEmployees = async () => {
@@ -38,33 +41,35 @@ export default function EmployeeManagement() {
   const handleAddEmployee = async (newEmployeeData) => {
     const activeBranch = localStorage.getItem('active_branch');
     if (!activeBranch) {
-      // ✅ UPDATED: Use premium modal instead of alert
       setModal({ isOpen: true, type: 'error', message: "No active branch selected." });
       return;
     }
 
-    // ✅ NEW: Prevent execution if already submitting (solves the double-entry bug)
-    if (isSubmitting) return;
+    // ✅ UPDATED: Check the synchronous lock instead of the async state
+    if (submitLock.current) return;
+    
+    // ✅ NEW: Lock the function instantaneously in memory
+    submitLock.current = true;
+    setIsSubmitting(true); // Still update state to show the UI loading spinner
 
-    setIsSubmitting(true);
     try {
       // Post to backend (which handles encryption and Firestore saving)
       const response = await api.post(`/api/employees/${activeBranch}`, newEmployeeData);
       
       if (response.data.success) {
-        // Refresh the list from the DB to ensure sync, or append locally
+        // Refresh the list from the DB to ensure sync
         fetchEmployees(); 
         setIsModalOpen(false);
-        // ✅ NEW: Trigger premium success modal
         setModal({ isOpen: true, type: 'success', message: 'Employee securely registered in the system.' });
       }
     } catch (error) {
       console.error("Error saving employee to DB:", error);
-      // ✅ UPDATED: Use premium modal instead of alert
       const errorMsg = error.response?.data?.message || 'Network error. Failed to save employee.';
       setModal({ isOpen: true, type: 'error', message: errorMsg });
     } finally {
-      setIsSubmitting(false); // ✅ NEW: Release the lock
+      // ✅ NEW: Release the lock strictly in the finally block
+      submitLock.current = false; 
+      setIsSubmitting(false); 
     }
   };
 
@@ -76,7 +81,7 @@ export default function EmployeeManagement() {
     let count = 0;
     const today = new Date();
     employees.forEach(emp => {
-      [emp.emiratesIdExpiry, emp.workPermitExpiry, emp.passportExpiry].forEach(date => {
+      [emp.emiratesIdExpiry, emp.workPermitExpiry, emp.passportExpiry, emp.healthInsuranceExpiry].forEach(date => {
         if (date) {
           const daysLeft = (new Date(date) - today) / (1000 * 60 * 60 * 24);
           if (daysLeft <= 90) count++;
@@ -170,10 +175,10 @@ export default function EmployeeManagement() {
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onAdd={handleAddEmployee} 
-        isSubmitting={isSubmitting} // ✅ NEW: Passed prop to lock the form
+        isSubmitting={isSubmitting} // Passes the visual loading state down to the modal
       />
 
-      {/* ✅ NEW: Custom Premium Success/Error Modal */}
+      {/* Custom Premium Success/Error Modal */}
       {modal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setModal({ ...modal, isOpen: false })}></div>
