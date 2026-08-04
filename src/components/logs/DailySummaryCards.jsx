@@ -10,10 +10,16 @@ export default function DailySummaryCards({ logs = [] }) {
     const amount = parseFloat(trx.amount || 0);
     const type = trx.type;
 
-    if (type === 'INFLOW' || type === 'TEMP_INFLOW') acc.inflow += amount;
-    else if (type === 'OUTFLOW' || type === 'EXPENSE') acc.outflow += amount;
-    else if (type === 'EXCHANGE') acc.exchange += amount;
-    else if (type === 'TRANSFER') acc.transfer += amount;
+    if (type === 'INFLOW' || type === 'TEMP_INFLOW') {
+        acc.inflow += amount;
+    } else if (type === 'OUTFLOW' || type === 'EXPENSE') {
+        // ✅ FIX: Force absolute value so mixed signs in the database add up correctly
+        acc.outflow += Math.abs(amount); 
+    } else if (type === 'EXCHANGE') {
+        acc.exchange += amount;
+    } else if (type === 'TRANSFER') {
+        acc.transfer += amount;
+    }
     
     return acc;
   }, { inflow: 0, outflow: 0, exchange: 0, transfer: 0 });
