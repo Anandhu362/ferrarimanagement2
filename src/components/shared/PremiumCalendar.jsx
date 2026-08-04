@@ -14,13 +14,16 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
   // 'date' (days grid), 'month' (12 months grid), 'year' (decade grid)
   const [viewMode, setViewMode] = useState('date'); 
 
+  // ✅ FIX: Extract the first date as a primitive string to prevent referential equality loops
+  const firstSelectedDate = selectedDates && selectedDates.length > 0 ? selectedDates[0] : null;
+
   // Sync viewDate and reset view mode when the calendar opens
   useEffect(() => {
     if (isOpen) {
-      setViewDate(selectedDates.length > 0 ? new Date(selectedDates[0]) : new Date());
+      setViewDate(firstSelectedDate ? new Date(firstSelectedDate) : new Date());
       setViewMode('date'); 
     }
-  }, [isOpen, selectedDates]);
+  }, [isOpen, firstSelectedDate]); // ✅ FIX: Depend on the primitive string, not the array reference
 
   if (!isOpen) return null;
 
