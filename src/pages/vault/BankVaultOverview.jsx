@@ -1,6 +1,6 @@
 // frontend/src/pages/vault/BankVaultOverview.jsx
 import React, { useState, useEffect } from 'react';
-import api, { getBankBalanceForDate } from '../../config/api'; // ✅ IMPORTED NEW API HELPER
+import api, { getBankBalanceForDate } from '../../config/api'; 
 import BankTransactionForm from '../../components/vault/BankTransactionForm'; 
 import BankLogsCard from '../../components/vault/BankLogsCard'; 
 
@@ -11,7 +11,6 @@ export default function BankVaultOverview() {
   // Toggle this state to trigger child component re-fetches
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // ✅ NEW: State for tracking the selected date and its fetched snapshot data
   const [selectedDate, setSelectedDate] = useState(null);
   const [snapshotData, setSnapshotData] = useState(null);
 
@@ -38,10 +37,9 @@ export default function BankVaultOverview() {
     }
   };
 
-  // ✅ NEW: Fetch the specific date's closing balance when selectedDate changes
+  // Fetch the specific date's closing balance when selectedDate or refreshTrigger changes
   useEffect(() => {
     const fetchDateSnapshot = async () => {
-      // If the user clears the filter, reset the snapshot
       if (!selectedDate) {
         setSnapshotData(null);
         return;
@@ -63,13 +61,14 @@ export default function BankVaultOverview() {
     };
 
     fetchDateSnapshot();
-  }, [selectedDate, refreshTrigger]); // Re-fetches if a manual trx is added for that date
+  }, [selectedDate, refreshTrigger]); 
 
   useEffect(() => {
     fetchBankVaultData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]); 
 
+  // This function increments the trigger, forcing all useEffects to run again
   const handleTransactionSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
   };
@@ -120,7 +119,6 @@ export default function BankVaultOverview() {
                 </h3>
               </div>
               
-              {/* ✅ NEW: Dynamic Selected Date Snapshot UI */}
               {snapshotData && selectedDate && (
                 <div className="mt-8 p-5 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-inner">
                   <div className="flex items-center gap-2 mb-4">
@@ -182,10 +180,11 @@ export default function BankVaultOverview() {
 
         {/* RIGHT COLUMN: Vertical Log Container */}
         <div className="xl:col-span-7 h-full">
-          {/* ✅ NEW: Pass onDateChange to BankLogsCard to receive the selected calendar date */}
+          {/* ✅ FIX: Passed handleTransactionSuccess to onEditSuccess */}
           <BankLogsCard 
             refreshTrigger={refreshTrigger} 
             onDateChange={(date) => setSelectedDate(date)} 
+            onEditSuccess={handleTransactionSuccess} 
           />
         </div>
         

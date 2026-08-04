@@ -2,20 +2,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../config/api';
 import PremiumCalendar from '../shared/PremiumCalendar';
+import EditBankLogModal from './EditBankLogModal';
 
-// ✅ NEW: Added onDateChange to the component props to communicate with the parent
-export default function BankLogsCard({ refreshTrigger, onDateChange }) {
+export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSuccess }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Filters State
   const [selectedDates, setSelectedDates] = useState([]);
-  const [filterType, setFilterType] = useState('ALL'); // 'ALL', 'CREDIT', 'DEBIT'
+  const [filterType, setFilterType] = useState('ALL'); 
   
   // UI Dropdown State
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedLog, setSelectedLog] = useState(null);
+
   const dropdownRef = useRef(null);
 
   // Close custom dropdown if clicked outside
@@ -33,9 +37,8 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
     setLoading(true);
     try {
       const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
-      let endpoint = `/api/vault/bank-logs?branchId=${encodeURIComponent(activeBranch)}`;
+      let endpoint = `/api/vault/bank-logs?branchId=${encodeURIComponent(activeBranch.trim())}`;
       
-      // Send dates to backend to pull historical data if needed
       if (dates && dates.length > 0) {
         endpoint += `&dates=${dates.join(',')}`;
       }
@@ -51,19 +54,15 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
     }
   };
 
-  // Re-fetch when dates change or a new transaction is recorded
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDates, refreshTrigger]);
 
-  // ✅ UPDATED: Handle date selection and notify the parent component
   const handleDateSelect = (dates) => {
     setSelectedDates(dates);
     
-    // Notify the parent (BankVaultOverview) so it can fetch the specific date's snapshot
     if (onDateChange) {
-        // If a date is selected, pass the first date string. If cleared, pass null.
         if (dates && dates.length > 0) {
             onDateChange(dates[0]);
         } else {
@@ -72,13 +71,45 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
     }
   };
 
-  // ✅ ROBUST FRONTEND FILTERING
+  const handleEditClick = (log) => {
+    setSelectedLog(log);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveChanges = async (updatedData) => {
+    try {
+      const rawBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const safeBranch = encodeURIComponent(rawBranch.trim());
+      const safeLogId = encodeURIComponent(updatedData.logId.trim());
+
+      const response = await api.put(`/api/vault/logs/${safeBranch}/${safeLogId}`, {
+        newAmount: updatedData.newAmount,
+        newDate: updatedData.newDate
+      });
+
+      if (response.data.success) {
+        fetchLogs(); 
+        
+        // Trigger parent refresh
+        if (onEditSuccess) {
+            onEditSuccess();
+        }
+        
+        if (onDateChange && selectedDates.length > 0) {
+            onDateChange(selectedDates[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating bank log:", error);
+      alert(`Update Failed: ${error.message}`);
+    }
+  };
+
   const displayedLogs = logs.filter(log => {
-    // 1. Strict Date Filter (Solves backend timezone/format bleeding)
     if (selectedDates.length > 0) {
       let logDateStr = "";
       if (log.createdAt && log.createdAt.length === 10) {
-        logDateStr = log.createdAt; // YYYY-MM-DD format
+        logDateStr = log.createdAt; 
       } else if (log.createdAt) {
         logDateStr = new Date(log.createdAt).toISOString().split('T')[0];
       }
@@ -86,9 +117,7 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
       if (!selectedDates.includes(logDateStr)) return false;
     }
 
-    // 2. Strict Type Filter (Credit / Debit)
     if (filterType !== 'ALL') {
-      // Physical vault OUTFLOWs sent to the bank are always Credits to the bank balance.
       const isCredit = log.type === 'BANK_MANUAL_CREDIT' || log.type === 'OUTFLOW';
       
       if (filterType === 'CREDIT' && !isCredit) return false;
@@ -101,7 +130,6 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
   return (
     <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col h-full min-h-[600px] relative z-10">
       
-      {/* Header & Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 relative z-30">
         <div>
           <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Transaction Logs</h3>
@@ -110,7 +138,6 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
 
         <div className="flex items-center gap-3">
           
-          {/* Custom Type Filter Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button 
               onClick={() => {
@@ -148,7 +175,6 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
             )}
           </div>
 
-          {/* Premium Calendar Date Filter */}
           <div className="relative z-20">
             <button 
               onClick={() => {
@@ -180,7 +206,6 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
         </div>
       </div>
 
-      {/* Logs List Container */}
       <div className="flex-1 overflow-y-auto pr-2 space-y-3 no-scrollbar relative z-10">
         {loading ? (
           <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-50">
@@ -199,10 +224,8 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
           </div>
         ) : (
           displayedLogs.map((log) => {
-            // ✅ Clean Logic for Credit vs Debit
             const isCredit = log.type === 'BANK_MANUAL_CREDIT' || log.type === 'OUTFLOW';
             
-            // Extract clean title from description
             let rawTitle = (log.description || '').replace('[Bank Account] ', '').split(' - Notes removed:')[0];
             
             let displayTitle = rawTitle;
@@ -222,7 +245,6 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
                 className="group p-4 rounded-2xl bg-[#FCFCFD] hover:bg-white border border-slate-100 hover:border-slate-200 transition-all shadow-sm hover:shadow-md flex items-center justify-between"
               >
                 <div className="flex items-center gap-4">
-                  {/* Icon Indicator */}
                   <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 border ${
                     isCredit ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-rose-50 border-rose-100 text-rose-600'
                   }`}>
@@ -233,7 +255,6 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
                     )}
                   </div>
                   
-                  {/* Text Information */}
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 tracking-tight line-clamp-1">{displayTitle}</h4>
                     <div className="flex items-center gap-2 mt-1">
@@ -244,18 +265,36 @@ export default function BankLogsCard({ refreshTrigger, onDateChange }) {
                   </div>
                 </div>
 
-                {/* Amount */}
-                <div className={`text-right font-bold tracking-tight text-sm sm:text-base whitespace-nowrap pl-4 ${
-                  isCredit ? 'text-emerald-600' : 'text-slate-900'
-                }`}>
-                  {isCredit ? '+' : '-'} <span className="text-xs mr-1 opacity-70">AED</span>
-                  {log.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                <div className="flex items-center gap-3 pl-4">
+                  <div className={`text-right font-bold tracking-tight text-sm sm:text-base whitespace-nowrap ${
+                    isCredit ? 'text-emerald-600' : 'text-slate-900'
+                  }`}>
+                    {isCredit ? '+' : '-'} <span className="text-xs mr-1 opacity-70">AED</span>
+                    {log.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                  </div>
+                  
+                  <button 
+                    onClick={() => handleEditClick(log)} 
+                    className="text-slate-400 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    title="Edit Transaction"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      <EditBankLogModal 
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        logData={selectedLog}
+        onSave={handleSaveChanges}
+      />
     </div>
   );
 }
