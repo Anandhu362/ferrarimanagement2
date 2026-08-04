@@ -5,18 +5,25 @@ import PremiumCalendar from '../shared/PremiumCalendar';
 
 const EditBankLogModal = ({ isOpen, onClose, logData, onSave }) => {
     const [amount, setAmount] = useState('');
+    const [txType, setTxType] = useState('CREDIT'); // 'CREDIT' or 'DEBIT'
     
-    // Calendar & Date State
+    // Calendar & UI State
     const [selectedDates, setSelectedDates] = useState([]);
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+    const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
     
     const [loading, setLoading] = useState(false);
-    const dropdownRef = useRef(null);
+    const calendarRef = useRef(null);
+    const typeDropdownRef = useRef(null);
 
     // Initialize state when modal opens
     useEffect(() => {
         if (logData && isOpen) {
             setAmount(logData.amount || '');
+            
+            // Deduce whether log is Credit or Debit
+            const isCredit = logData.type === 'BANK_MANUAL_CREDIT' || logData.type === 'OUTFLOW';
+            setTxType(isCredit ? 'CREDIT' : 'DEBIT');
             
             // Format existing date for the PremiumCalendar
             if (logData.createdAt) {
@@ -27,14 +34,18 @@ const EditBankLogModal = ({ isOpen, onClose, logData, onSave }) => {
             }
         } else {
             setIsCalendarOpen(false);
+            setIsTypeDropdownOpen(false);
         }
     }, [logData, isOpen]);
 
-    // Handle outside clicks to close the custom calendar dropdown
+    // Handle outside clicks to close custom dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+            if (calendarRef.current && !calendarRef.current.contains(event.target)) {
                 setIsCalendarOpen(false);
+            }
+            if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target)) {
+                setIsTypeDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -52,7 +63,8 @@ const EditBankLogModal = ({ isOpen, onClose, logData, onSave }) => {
             await onSave({ 
                 logId: logData.id, 
                 newAmount: amount, 
-                newDate: selectedDates[0] // Extract the selected single date
+                newDate: selectedDates[0], // Extract the selected single date
+                newType: txType // Transmit the modified transaction type
             });
             onClose();
         } catch (error) {
@@ -67,7 +79,7 @@ const EditBankLogModal = ({ isOpen, onClose, logData, onSave }) => {
         ? new Date(selectedDates[0]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
         : 'Select Date';
 
-    // ✅ FIX: Use createPortal to break out of all parent stacking contexts
+    // Use createPortal to break out of all parent stacking contexts
     return ReactDOM.createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             
@@ -101,14 +113,80 @@ const EditBankLogModal = ({ isOpen, onClose, logData, onSave }) => {
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     
+                    {/* Custom Fintech Transaction Type Selector */}
+                    <div className="relative" ref={typeDropdownRef}>
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                            Transaction Type
+                        </label>
+                        <button 
+                            type="button"
+                            onClick={() => {
+                                setIsTypeDropdownOpen(!isTypeDropdownOpen);
+                                setIsCalendarOpen(false); // Close calendar if open
+                            }}
+                            className={`w-full flex items-center justify-between px-4 py-3.5 bg-white border rounded-xl text-sm font-semibold transition-all shadow-sm focus:outline-none ${
+                                isTypeDropdownOpen ? 'border-brand-dark ring-2 ring-brand-light/20' : 'border-slate-200 hover:border-slate-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <span className={`w-2.5 h-2.5 rounded-full ${txType === 'CREDIT' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                                <span className={txType === 'CREDIT' ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold'}>
+                                    {txType === 'CREDIT' ? 'Credit (+)' : 'Debit (-)'}
+                                </span>
+                            </div>
+                            <svg className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isTypeDropdownOpen ? 'rotate-180 text-brand-dark' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {/* Dropdown Options */}
+                        {isTypeDropdownOpen && (
+                            <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.12)] border border-slate-100 z-50 p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                                <button
+                                    type="button"
+                                    onClick={() => { setTxType('CREDIT'); setIsTypeDropdownOpen(false); }}
+                                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-between transition-colors ${
+                                        txType === 'CREDIT' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        Credit (+)
+                                    </div>
+                                    {txType === 'CREDIT' && (
+                                        <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setTxType('DEBIT'); setIsTypeDropdownOpen(false); }}
+                                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-between transition-colors ${
+                                        txType === 'DEBIT' ? 'bg-rose-50 text-rose-700' : 'text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                                        Debit (-)
+                                    </div>
+                                    {txType === 'DEBIT' && (
+                                        <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Custom Fintech Date Dropdown */}
-                    <div className="relative" ref={dropdownRef}>
+                    <div className="relative" ref={calendarRef}>
                         <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">
                             Transaction Date
                         </label>
                         <button 
                             type="button"
-                            onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                            onClick={() => {
+                                setIsCalendarOpen(!isCalendarOpen);
+                                setIsTypeDropdownOpen(false); // Close type dropdown if open
+                            }}
                             className={`w-full flex items-center justify-between px-4 py-3.5 bg-white border rounded-xl text-sm font-semibold transition-all shadow-sm focus:outline-none ${
                                 isCalendarOpen ? 'border-brand-dark ring-2 ring-brand-light/20 text-slate-900' : 'border-slate-200 text-slate-700 hover:border-slate-300'
                             }`}
@@ -154,7 +232,7 @@ const EditBankLogModal = ({ isOpen, onClose, logData, onSave }) => {
                                 type="number" 
                                 step="0.01"
                                 min="0"
-                                /* ✅ FIX: Added Tailwind classes to hide the number input spin buttons */
+                                /* Added Tailwind classes to hide the number input spin buttons */
                                 className="w-full pl-14 pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-lg font-bold text-slate-900 focus:border-brand-dark focus:ring-2 focus:ring-brand-light/20 transition-all shadow-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 value={amount} 
                                 onChange={(e) => setAmount(e.target.value)} 
@@ -190,7 +268,7 @@ const EditBankLogModal = ({ isOpen, onClose, logData, onSave }) => {
                 </form>
             </div>
         </div>,
-        document.body // ✅ Render the modal completely outside the React DOM tree hierarchy
+        document.body // Render the modal completely outside the React DOM tree hierarchy
     );
 };
 

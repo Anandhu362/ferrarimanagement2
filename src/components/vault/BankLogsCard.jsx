@@ -84,7 +84,9 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
 
       const response = await api.put(`/api/vault/logs/${safeBranch}/${safeLogId}`, {
         newAmount: updatedData.newAmount,
-        newDate: updatedData.newDate
+        newDate: updatedData.newDate,
+        // ✅ NEW: Transmit the selected transaction type (CREDIT / DEBIT) to the backend
+        newType: updatedData.newType 
       });
 
       if (response.data.success) {
