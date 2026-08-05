@@ -58,4 +58,9 @@ export const getBankBalanceForDate = async (branchId, date) => {
   });
 };
 
+// ✅ NEW: Exported API function to trigger a manual WhatsApp document expiry alert
+export const sendManualEmployeeAlert = async (branchId, employeeId) => {
+  return await api.post(`/api/employees/${branchId}/alert/${employeeId}`);
+};
+
 export default api;

@@ -1,7 +1,7 @@
 // frontend/src/components/operations/EmployeeListTable.jsx
 import React, { useState } from 'react';
+import { sendManualEmployeeAlert } from '../../config/api';
 
-// Extracted outside the main component to prevent unnecessary recalculations
 const getExpiryDetails = (dateString) => {
   if (!dateString) return null;
   
@@ -44,14 +44,12 @@ const getExpiryDetails = (dateString) => {
   };
 };
 
-// Extracted to manage its own 'reveal' state without causing parent re-renders
 const ExpiryCell = ({ date, idNumber }) => {
   const [isRevealed, setIsRevealed] = useState(false);
   const details = getExpiryDetails(date);
   
   if (!details) return <span className="text-slate-400 text-xs font-medium">-</span>;
 
-  // Mask the ID, showing only the last 4 characters if available
   const getMaskedId = (id) => {
     if (!id) return '•••• ••••';
     if (id.length <= 4) return '••••';
@@ -60,8 +58,6 @@ const ExpiryCell = ({ date, idNumber }) => {
 
   return (
     <div className="flex flex-col gap-1.5 w-full max-w-[140px]">
-      
-      {/* Date & Days Remaining Badge */}
       <div className="flex justify-between items-end">
         <span className="text-slate-900 font-semibold text-[13px] tracking-tight">{details.dateFormatted}</span>
         <span className={`text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded-md ${details.bgColor} ${details.textColor}`}>
@@ -69,7 +65,6 @@ const ExpiryCell = ({ date, idNumber }) => {
         </span>
       </div>
       
-      {/* Fintech Live Status Bar */}
       <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
         <div 
           className={`h-full rounded-full ${details.color} transition-all duration-1000 ease-out`}
@@ -77,24 +72,19 @@ const ExpiryCell = ({ date, idNumber }) => {
         />
       </div>
 
-      {/* Hidden ID Reveal Section */}
       {idNumber && (
         <div className="flex items-center justify-between mt-0.5">
-          {/* Darkened text from slate-400 to slate-600, increased size to 11px, bolded for better visibility */}
           <span className="text-[11px] font-semibold text-slate-600 font-mono tracking-widest transition-all">
             {isRevealed ? idNumber : getMaskedId(idNumber)}
           </span>
-          {/* Darkened the default icon state from slate-300 to slate-400 */}
           <button 
             onClick={() => setIsRevealed(!isRevealed)}
             className="text-slate-400 hover:text-brand-dark transition-colors p-0.5 rounded focus:outline-none"
             title={isRevealed ? "Hide ID" : "Show ID"}
           >
             {isRevealed ? (
-              // Eye Slash Icon
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
             ) : (
-              // Eye Open Icon
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             )}
           </button>
@@ -104,7 +94,78 @@ const ExpiryCell = ({ date, idNumber }) => {
   );
 };
 
-export default function EmployeeListTable({ employees }) {
+const EmployeeRowActions = ({ employee, branchId }) => {
+  const [isAlerting, setIsAlerting] = useState(false);
+
+  const handleAlertClick = async () => {
+    if (isAlerting) return;
+    setIsAlerting(true);
+    
+    try {
+      let activeBranch = branchId;
+      
+      // Fallback and parsing logic for activeBranch
+      if (!activeBranch || activeBranch === 'null' || activeBranch === 'undefined') {
+        const storedBranch = localStorage.getItem('activeBranch');
+        if (storedBranch) {
+          try {
+            const parsed = JSON.parse(storedBranch);
+            activeBranch = parsed?.id || parsed?.branchId || parsed;
+          } catch (e) {
+            activeBranch = storedBranch;
+          }
+        }
+      }
+
+      // Strip extra quotes if local storage stringified a plain string
+      if (typeof activeBranch === 'string') {
+        activeBranch = activeBranch.replace(/['"]+/g, '');
+      }
+
+      // Intercept and block the API call if branchId is STILL invalid
+      if (!activeBranch || activeBranch === 'null' || activeBranch === 'undefined') {
+        alert("System Error: Branch Identity is missing. Please refresh or re-select your branch from the dashboard.");
+        setIsAlerting(false);
+        return;
+      }
+
+      await sendManualEmployeeAlert(activeBranch, employee.id);
+      
+    } catch (error) {
+      console.error("Failed to trigger manual alert:", error);
+    } finally {
+      setIsAlerting(false);
+    }
+  };
+
+  return (
+    <div className="flex justify-end items-center gap-2">
+      <button 
+        onClick={handleAlertClick}
+        disabled={isAlerting}
+        title="Send WhatsApp Status Alert"
+        className="group flex items-center justify-center gap-1.5 text-amber-600 hover:text-amber-700 font-semibold text-[13px] transition-all px-3 py-1.5 rounded-lg border border-transparent hover:border-amber-200 hover:bg-amber-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isAlerting ? (
+          <svg className="animate-spin h-3.5 w-3.5 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        ) : (
+          <svg className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+        )}
+        Alert
+      </button>
+      <button className="text-slate-500 hover:text-brand-dark font-semibold text-[13px] transition-colors px-3 py-1.5 rounded-lg border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm">
+        Manage
+      </button>
+    </div>
+  );
+};
+
+export default function EmployeeListTable({ employees, branchId }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredEmployees = employees.filter(emp => {
@@ -143,7 +204,6 @@ export default function EmployeeListTable({ employees }) {
               <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Emirates ID</th>
               <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Work Permit</th>
               <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Passport</th>
-              {/* ✅ NEW: Added Health Insurance Column Header */}
               <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Health Insurance</th>
               <th className="px-8 py-4 text-right whitespace-nowrap border-b border-slate-100">Actions</th>
             </tr>
@@ -151,14 +211,12 @@ export default function EmployeeListTable({ employees }) {
           <tbody className="divide-y divide-slate-100/80 text-sm">
             {filteredEmployees.length === 0 ? (
               <tr>
-                {/* ✅ UPDATED: Colspan increased to 6 */}
                 <td colSpan="6" className="px-8 py-12 text-center text-slate-500 font-medium">No employees match your search.</td>
               </tr>
             ) : (
               filteredEmployees.map((emp, index) => (
                 <tr key={index} className="hover:bg-slate-50/70 transition-colors group">
                   
-                  {/* 1. Name & Contact */}
                   <td className="px-8 py-5">
                     <div className="flex flex-col">
                       <span className="text-slate-900 font-bold tracking-tight uppercase text-[13px]">
@@ -177,7 +235,6 @@ export default function EmployeeListTable({ employees }) {
                     </div>
                   </td>
 
-                  {/* 2. Emirates ID Tracker */}
                   <td className="px-8 py-5 whitespace-nowrap align-middle">
                     <ExpiryCell 
                       date={emp.emiratesIdExpiry} 
@@ -185,7 +242,6 @@ export default function EmployeeListTable({ employees }) {
                     />
                   </td>
 
-                  {/* 3. Work Permit Tracker */}
                   <td className="px-8 py-5 whitespace-nowrap align-middle">
                     <ExpiryCell 
                       date={emp.workPermitExpiry} 
@@ -193,7 +249,6 @@ export default function EmployeeListTable({ employees }) {
                     />
                   </td>
 
-                  {/* 4. Passport Tracker */}
                   <td className="px-8 py-5 whitespace-nowrap align-middle">
                     <ExpiryCell 
                       date={emp.passportExpiry} 
@@ -201,7 +256,6 @@ export default function EmployeeListTable({ employees }) {
                     />
                   </td>
 
-                  {/* 5. Health Insurance Tracker - ✅ NEW */}
                   <td className="px-8 py-5 whitespace-nowrap align-middle">
                     <ExpiryCell 
                       date={emp.healthInsuranceExpiry} 
@@ -209,11 +263,8 @@ export default function EmployeeListTable({ employees }) {
                     />
                   </td>
 
-                  {/* 6. Actions */}
-                  <td className="px-8 py-5 text-right whitespace-nowrap align-middle">
-                    <button className="text-slate-500 hover:text-brand-dark font-semibold text-sm transition-colors px-4 py-2 rounded-xl border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm">
-                      Manage
-                    </button>
+                  <td className="px-8 py-5 whitespace-nowrap align-middle">
+                    <EmployeeRowActions employee={emp} branchId={branchId} />
                   </td>
 
                 </tr>

@@ -2,28 +2,51 @@
 import React, { useState, useEffect, useRef } from 'react';
 import EmployeeListTable from '../../components/operations/EmployeeListTable';
 import AddEmployeeModal from '../../components/operations/AddEmployeeModal';
-import api from '../../config/api'; // Import your configured axios instance
+import api from '../../config/api'; 
 
 export default function EmployeeManagement() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // ✅ NEW: Store the active branch in React State
+  const [activeBranch, setActiveBranch] = useState(null);
 
   // UI State for loading spinner and modals
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' });
   
-  // ✅ NEW: Synchronous memory lock to prevent rapid double-click API calls
   const submitLock = useRef(false);
 
-  // Fetch real data from Backend / Firestore
-  const fetchEmployees = async () => {
-    const activeBranch = localStorage.getItem('active_branch');
-    if (!activeBranch) return;
+  // ✅ NEW: Robustly resolve branch on mount
+  useEffect(() => {
+    let branch = localStorage.getItem('active_branch') || localStorage.getItem('activeBranch');
+    
+    if (branch) {
+      try {
+        const parsed = JSON.parse(branch);
+        branch = parsed?.id || parsed?.branchId || parsed;
+      } catch (e) {
+        // It's a plain string, continue
+      }
+      if (typeof branch === 'string') {
+        branch = branch.replace(/['"]+/g, '');
+      }
+      setActiveBranch(branch);
+      fetchEmployees(branch);
+    } else {
+      setLoading(false);
+      setModal({ isOpen: true, type: 'error', message: 'System Error: Active branch not found in session.' });
+    }
+  }, []);
+
+  // ✅ UPDATED: Accepts branch parameter directly for reliable fetching
+  const fetchEmployees = async (branchId) => {
+    if (!branchId) return;
 
     setLoading(true);
     try {
-      const response = await api.get(`/api/employees/${activeBranch}`);
+      const response = await api.get(`/api/employees/${branchId}`);
       if (response.data.success) {
         setEmployees(response.data.data);
       }
@@ -34,31 +57,22 @@ export default function EmployeeManagement() {
     }
   };
 
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
   const handleAddEmployee = async (newEmployeeData) => {
-    const activeBranch = localStorage.getItem('active_branch');
     if (!activeBranch) {
       setModal({ isOpen: true, type: 'error', message: "No active branch selected." });
       return;
     }
 
-    // ✅ UPDATED: Check the synchronous lock instead of the async state
     if (submitLock.current) return;
     
-    // ✅ NEW: Lock the function instantaneously in memory
     submitLock.current = true;
-    setIsSubmitting(true); // Still update state to show the UI loading spinner
+    setIsSubmitting(true); 
 
     try {
-      // Post to backend (which handles encryption and Firestore saving)
       const response = await api.post(`/api/employees/${activeBranch}`, newEmployeeData);
       
       if (response.data.success) {
-        // Refresh the list from the DB to ensure sync
-        fetchEmployees(); 
+        fetchEmployees(activeBranch); 
         setIsModalOpen(false);
         setModal({ isOpen: true, type: 'success', message: 'Employee securely registered in the system.' });
       }
@@ -67,16 +81,13 @@ export default function EmployeeManagement() {
       const errorMsg = error.response?.data?.message || 'Network error. Failed to save employee.';
       setModal({ isOpen: true, type: 'error', message: errorMsg });
     } finally {
-      // ✅ NEW: Release the lock strictly in the finally block
       submitLock.current = false; 
       setIsSubmitting(false); 
     }
   };
 
-  // Simple KPI Calculators for Top Cards
   const totalEmployees = employees.length;
   
-  // Count how many documents across all employees are expiring in < 90 days
   const getCriticalCount = () => {
     let count = 0;
     const today = new Date();
@@ -107,7 +118,6 @@ export default function EmployeeManagement() {
   return (
     <div className="space-y-8 animate-in fade-in duration-700 max-w-[1600px] mx-auto pb-12 relative">
       
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h2 className="text-[1.75rem] font-semibold text-slate-900 tracking-tight leading-tight">Employee Tracking</h2>
@@ -124,10 +134,8 @@ export default function EmployeeManagement() {
         </div>
       </div>
 
-      {/* TOP SECTION: KPI Cards focused on Compliance */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Brand Dark Card */}
         <div className="bg-brand-dark rounded-[2rem] p-7 text-white relative overflow-hidden shadow-[0_12px_40px_rgb(43,38,64,0.3)]">
           <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
           <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-brand-light/30 rounded-full blur-2xl"></div>
@@ -144,7 +152,6 @@ export default function EmployeeManagement() {
           </div>
         </div>
 
-        {/* Warning Card */}
         <div className="bg-white rounded-[2rem] p-7 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-shadow duration-300">
           <div className="flex justify-between items-start">
             <p className="text-slate-400 text-xs font-medium mb-1.5 tracking-widest uppercase">Action Required</p>
@@ -158,7 +165,6 @@ export default function EmployeeManagement() {
           <p className="text-xs text-slate-400 mt-2 font-medium">Documents Expiring (90 Days)</p>
         </div>
 
-        {/* Status Card */}
         <div className="bg-white rounded-[2rem] p-7 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-shadow duration-300">
           <p className="text-slate-400 text-xs font-medium mb-1.5 tracking-widest uppercase">Compliance Status</p>
           <h3 className={`text-3xl font-semibold tracking-tight ${criticalDocs > 2 ? 'text-amber-600' : 'text-emerald-600'} mt-1`}>
@@ -169,16 +175,16 @@ export default function EmployeeManagement() {
 
       </div>
 
-      <EmployeeListTable employees={employees} />
+      {/* ✅ UPDATED: The branchId is now explicitly passed as a prop to the table */}
+      <EmployeeListTable employees={employees} branchId={activeBranch} />
 
       <AddEmployeeModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onAdd={handleAddEmployee} 
-        isSubmitting={isSubmitting} // Passes the visual loading state down to the modal
+        isSubmitting={isSubmitting} 
       />
 
-      {/* Custom Premium Success/Error Modal */}
       {modal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setModal({ ...modal, isOpen: false })}></div>
