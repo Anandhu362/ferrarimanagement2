@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom'; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore'; // ✅ Added Firestore readers
-import { auth, db } from '../../config/firebase'; // ✅ Added db import
+import { collection, query, where, getDocs } from 'firebase/firestore'; // ✅ Updated Firestore readers
+import { auth, db } from '../../config/firebase'; 
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -22,16 +22,21 @@ export default function Login() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Fetch their specific branch details from Firestore
-      const branchDocRef = doc(db, 'branches', user.uid);
-      const branchDoc = await getDoc(branchDocRef);
+      // 2. Query the 'branches' collection where the email matches the logged-in user's email
+      const branchesRef = collection(db, 'branches');
+      const q = query(branchesRef, where('email', '==', user.email));
+      const querySnapshot = await getDocs(q);
 
-      if (branchDoc.exists()) {
+      if (!querySnapshot.empty) {
+        // Grab the first matching branch document
+        const branchDoc = querySnapshot.docs[0];
         const branchData = branchDoc.data();
-        // 3. Set the branch name in local storage so the backend knows where to assign transactions
-        localStorage.setItem('active_branch', branchData.branchName);
+        
+        // 3. Set the correct active branch name in local storage
+        localStorage.setItem('active_branch', branchData.branchName || branchDoc.id);
       } else {
-        localStorage.setItem('active_branch', 'Unknown Branch');
+        // Fallback if no specific branch document matches this email
+        localStorage.setItem('active_branch', 'Unknown Branch'); 
       }
 
       // 4. Route directly to the dashboard

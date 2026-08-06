@@ -33,18 +33,23 @@ export default function RegisterBranch() {
       );
       const user = userCredential.user;
 
-      await setDoc(doc(db, 'branches', user.uid), {
-        branchName: formData.branchName,
+      // Clean branch name to use as a reliable document ID (e.g., "Sharjha")
+      const cleanBranchId = formData.branchName.trim();
+
+      // Store branch data using the branch name as the document ID to match backend expectations
+      await setDoc(doc(db, 'branches', cleanBranchId), {
+        branchName: cleanBranchId,
+        adminUid: user.uid, // Keep track of who created it
         phone: formData.phone,
         email: formData.email,
         createdAt: new Date().toISOString(),
         status: 'active'
       });
 
-      // ✅ Dynamically save the branch name for the session
-      localStorage.setItem('active_branch', formData.branchName);
+      // Dynamically save the branch name for the session
+      localStorage.setItem('active_branch', cleanBranchId);
 
-      // ✅ Skip the selection screen and go straight to dashboard
+      // Skip the selection screen and go straight to dashboard
       navigate('/dashboard');
     } catch (err) {
       console.error(err);
