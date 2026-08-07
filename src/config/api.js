@@ -71,6 +71,11 @@ export const updateEmployeeDocuments = async (branchId, employeeId, payload) => 
   return await api.patch(`/api/employees/${encodeURIComponent(branchId)}/${encodeURIComponent(employeeId)}`, payload);
 };
 
+// ✅ NEW: Exported API function to delete an employee record
+export const deleteEmployee = async (branchId, employeeId) => {
+  return await api.delete(`/api/employees/${encodeURIComponent(branchId)}/${encodeURIComponent(employeeId)}`);
+};
+
 // ----------------------------------------------------------------------
 // ✅ NEW: Mail Configuration API Helpers
 // ----------------------------------------------------------------------

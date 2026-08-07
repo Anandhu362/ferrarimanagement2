@@ -1,6 +1,6 @@
 // frontend/src/components/operations/EmployeeListTable.jsx
 import React, { useState } from 'react';
-import { sendManualEmployeeAlert } from '../../config/api';
+import { sendManualEmployeeAlert, deleteEmployee } from '../../config/api'; // ✅ IMPORTED deleteEmployee
 // ✅ IMPORTED NEW COMPONENT
 import ManageEmployeeModal from './ManageEmployeeModal';
 
@@ -96,8 +96,8 @@ const ExpiryCell = ({ date, idNumber }) => {
   );
 };
 
-// ✅ FIX: Added onManageClick prop to pass the employee up to the table state
-const EmployeeRowActions = ({ employee, branchId, onManageClick }) => {
+// ✅ FIX: Added onDeleteClick prop to pass the employee up to the delete modal state
+const EmployeeRowActions = ({ employee, branchId, onManageClick, onDeleteClick }) => {
   const [isAlerting, setIsAlerting] = useState(false);
 
   const handleAlertClick = async () => {
@@ -140,6 +140,17 @@ const EmployeeRowActions = ({ employee, branchId, onManageClick }) => {
 
   return (
     <div className="flex justify-end items-center gap-2">
+      {/* ✅ NEW: Delete Action Button */}
+      <button 
+        onClick={() => onDeleteClick(employee)}
+        title="Delete Employee"
+        className="group flex items-center justify-center p-2 text-slate-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50 focus:outline-none"
+      >
+        <svg className="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+
       <button 
         onClick={handleAlertClick}
         disabled={isAlerting}
@@ -158,8 +169,9 @@ const EmployeeRowActions = ({ employee, branchId, onManageClick }) => {
         )}
         Alert
       </button>
+
       <button 
-        onClick={() => onManageClick(employee)} // ✅ FIX: Triggers modal opening
+        onClick={() => onManageClick(employee)}
         className="text-slate-500 hover:text-brand-dark font-semibold text-[13px] transition-colors px-3 py-1.5 rounded-lg border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm focus:outline-none"
       >
         Manage
@@ -171,9 +183,14 @@ const EmployeeRowActions = ({ employee, branchId, onManageClick }) => {
 export default function EmployeeListTable({ employees, branchId, onRefresh }) {
   const [searchQuery, setSearchQuery] = useState('');
   
-  // ✅ FIX: Added Modal State Management
+  // Modal State Management (Manage)
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null);
+
+  // ✅ NEW: Modal State Management (Delete)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredEmployees = employees.filter(emp => {
     const nameMatch = emp.name?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -190,6 +207,37 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
   const closeManageModal = () => {
     setIsManageOpen(false);
     setSelectedEmp(null);
+  };
+
+  // ✅ NEW: Delete Handlers
+  const openDeleteModal = (employee) => {
+    setEmployeeToDelete(employee);
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setEmployeeToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!employeeToDelete) return;
+    setIsDeleting(true);
+    
+    try {
+      await deleteEmployee(branchId, employeeToDelete.id);
+      closeDeleteModal();
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Failed to delete employee:", error);
+      alert("Failed to delete employee. Please try again or check your connection.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -285,7 +333,8 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
                       <EmployeeRowActions 
                         employee={emp} 
                         branchId={branchId} 
-                        onManageClick={openManageModal} // ✅ FIX: Passes the function down
+                        onManageClick={openManageModal} 
+                        onDeleteClick={openDeleteModal} // ✅ FIX: Passed delete handler
                       />
                     </td>
 
@@ -297,7 +346,7 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
         </div>
       </div>
 
-      {/* ✅ NEW: Modal Rendering */}
+      {/* Manage Modal */}
       {isManageOpen && selectedEmp && (
         <ManageEmployeeModal
           employee={selectedEmp}
@@ -305,12 +354,58 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
           onClose={closeManageModal}
           onSuccess={() => {
             if (onRefresh) {
-              onRefresh(); // Trigger table reload if parent provided it
+              onRefresh();
             } else {
-              window.location.reload(); // Fallback reload
+              window.location.reload();
             }
           }}
         />
+      )}
+
+      {/* ✅ NEW: Delete Confirmation Modal */}
+      {isDeleteModalOpen && employeeToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 animate-in fade-in duration-200">
+          <div 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
+            onClick={!isDeleting ? closeDeleteModal : undefined}
+          ></div>
+          
+          <div className="relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl p-8 text-center overflow-hidden">
+            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Delete Employee</h3>
+            <p className="text-sm text-slate-500 mb-8 leading-relaxed">
+              Are you sure you want to permanently delete <span className="font-bold text-slate-800">{employeeToDelete.name}</span>? This action cannot be undone and will remove all their document records from the system.
+            </p>
+            
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={closeDeleteModal}
+                disabled={isDeleting}
+                className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-6 py-2.5 rounded-xl text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70"
+              >
+                {isDeleting && (
+                  <svg className="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
