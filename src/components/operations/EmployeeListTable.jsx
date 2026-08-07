@@ -1,6 +1,8 @@
 // frontend/src/components/operations/EmployeeListTable.jsx
 import React, { useState } from 'react';
 import { sendManualEmployeeAlert } from '../../config/api';
+// ✅ IMPORTED NEW COMPONENT
+import ManageEmployeeModal from './ManageEmployeeModal';
 
 const getExpiryDetails = (dateString) => {
   if (!dateString) return null;
@@ -94,7 +96,8 @@ const ExpiryCell = ({ date, idNumber }) => {
   );
 };
 
-const EmployeeRowActions = ({ employee, branchId }) => {
+// ✅ FIX: Added onManageClick prop to pass the employee up to the table state
+const EmployeeRowActions = ({ employee, branchId, onManageClick }) => {
   const [isAlerting, setIsAlerting] = useState(false);
 
   const handleAlertClick = async () => {
@@ -104,7 +107,6 @@ const EmployeeRowActions = ({ employee, branchId }) => {
     try {
       let activeBranch = branchId;
       
-      // Fallback and parsing logic for activeBranch
       if (!activeBranch || activeBranch === 'null' || activeBranch === 'undefined') {
         const storedBranch = localStorage.getItem('activeBranch');
         if (storedBranch) {
@@ -117,12 +119,10 @@ const EmployeeRowActions = ({ employee, branchId }) => {
         }
       }
 
-      // Strip extra quotes if local storage stringified a plain string
       if (typeof activeBranch === 'string') {
         activeBranch = activeBranch.replace(/['"]+/g, '');
       }
 
-      // Intercept and block the API call if branchId is STILL invalid
       if (!activeBranch || activeBranch === 'null' || activeBranch === 'undefined') {
         alert("System Error: Branch Identity is missing. Please refresh or re-select your branch from the dashboard.");
         setIsAlerting(false);
@@ -158,15 +158,22 @@ const EmployeeRowActions = ({ employee, branchId }) => {
         )}
         Alert
       </button>
-      <button className="text-slate-500 hover:text-brand-dark font-semibold text-[13px] transition-colors px-3 py-1.5 rounded-lg border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm">
+      <button 
+        onClick={() => onManageClick(employee)} // ✅ FIX: Triggers modal opening
+        className="text-slate-500 hover:text-brand-dark font-semibold text-[13px] transition-colors px-3 py-1.5 rounded-lg border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm focus:outline-none"
+      >
         Manage
       </button>
     </div>
   );
 };
 
-export default function EmployeeListTable({ employees, branchId }) {
+export default function EmployeeListTable({ employees, branchId, onRefresh }) {
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // ✅ FIX: Added Modal State Management
+  const [isManageOpen, setIsManageOpen] = useState(false);
+  const [selectedEmp, setSelectedEmp] = useState(null);
 
   const filteredEmployees = employees.filter(emp => {
     const nameMatch = emp.name?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -175,104 +182,136 @@ export default function EmployeeListTable({ employees, branchId }) {
     return nameMatch || nationalityMatch || mobileMatch;
   });
 
+  const openManageModal = (employee) => {
+    setSelectedEmp(employee);
+    setIsManageOpen(true);
+  };
+
+  const closeManageModal = () => {
+    setIsManageOpen(false);
+    setSelectedEmp(null);
+  };
+
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] overflow-hidden flex flex-col">
-      <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-white relative z-10">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Employee Directory</h3>
-          <p className="text-sm text-slate-500 mt-1 font-light">Live tracking of personnel documents and compliance.</p>
+    <>
+      <div className="bg-white rounded-[2rem] border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] overflow-hidden flex flex-col">
+        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-white relative z-10">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Employee Directory</h3>
+            <p className="text-sm text-slate-500 mt-1 font-light">Live tracking of personnel documents and compliance.</p>
+          </div>
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search employees..." 
+              className="bg-slate-50 border border-slate-200 text-sm font-medium text-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-brand-light/20 outline-none w-64 transition-all placeholder-slate-400"
+            />
+            <button className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-slate-500 hover:text-brand-dark hover:bg-slate-100 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <input 
-            type="text" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search employees..." 
-            className="bg-slate-50 border border-slate-200 text-sm font-medium text-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-brand-light/20 outline-none w-64 transition-all placeholder-slate-400"
-          />
-          <button className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-slate-500 hover:text-brand-dark hover:bg-slate-100 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-          </button>
-        </div>
-      </div>
-      
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 text-slate-600 text-[11px] font-bold uppercase tracking-wider">
-              <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Employee Details</th>
-              <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Emirates ID</th>
-              <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Work Permit</th>
-              <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Passport</th>
-              <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Health Insurance</th>
-              <th className="px-8 py-4 text-right whitespace-nowrap border-b border-slate-100">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100/80 text-sm">
-            {filteredEmployees.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="px-8 py-12 text-center text-slate-500 font-medium">No employees match your search.</td>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 text-slate-600 text-[11px] font-bold uppercase tracking-wider">
+                <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Employee Details</th>
+                <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Emirates ID</th>
+                <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Work Permit</th>
+                <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Passport</th>
+                <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Health Insurance</th>
+                <th className="px-8 py-4 text-right whitespace-nowrap border-b border-slate-100">Actions</th>
               </tr>
-            ) : (
-              filteredEmployees.map((emp, index) => (
-                <tr key={index} className="hover:bg-slate-50/70 transition-colors group">
-                  
-                  <td className="px-8 py-5">
-                    <div className="flex flex-col">
-                      <span className="text-slate-900 font-bold tracking-tight uppercase text-[13px]">
-                        {emp.name}
-                      </span>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[11px] text-slate-600 font-semibold bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-md">
-                          {emp.nationality}
-                        </span>
-                        {emp.mobile && (
-                          <span className="text-[11px] text-slate-500 font-medium tracking-wide">
-                            {emp.mobile}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="px-8 py-5 whitespace-nowrap align-middle">
-                    <ExpiryCell 
-                      date={emp.emiratesIdExpiry} 
-                      idNumber={emp.emiratesIdNumber} 
-                    />
-                  </td>
-
-                  <td className="px-8 py-5 whitespace-nowrap align-middle">
-                    <ExpiryCell 
-                      date={emp.workPermitExpiry} 
-                      idNumber={emp.workPermitNumber} 
-                    />
-                  </td>
-
-                  <td className="px-8 py-5 whitespace-nowrap align-middle">
-                    <ExpiryCell 
-                      date={emp.passportExpiry} 
-                      idNumber={emp.passportNumber} 
-                    />
-                  </td>
-
-                  <td className="px-8 py-5 whitespace-nowrap align-middle">
-                    <ExpiryCell 
-                      date={emp.healthInsuranceExpiry} 
-                      idNumber={emp.healthInsuranceNumber} 
-                    />
-                  </td>
-
-                  <td className="px-8 py-5 whitespace-nowrap align-middle">
-                    <EmployeeRowActions employee={emp} branchId={branchId} />
-                  </td>
-
+            </thead>
+            <tbody className="divide-y divide-slate-100/80 text-sm">
+              {filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-8 py-12 text-center text-slate-500 font-medium">No employees match your search.</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredEmployees.map((emp, index) => (
+                  <tr key={index} className="hover:bg-slate-50/70 transition-colors group">
+                    
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col">
+                        <span className="text-slate-900 font-bold tracking-tight uppercase text-[13px]">
+                          {emp.name}
+                        </span>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-[11px] text-slate-600 font-semibold bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-md">
+                            {emp.nationality}
+                          </span>
+                          {emp.mobile && (
+                            <span className="text-[11px] text-slate-500 font-medium tracking-wide">
+                              {emp.mobile}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-8 py-5 whitespace-nowrap align-middle">
+                      <ExpiryCell 
+                        date={emp.emiratesIdExpiry} 
+                        idNumber={emp.emiratesIdNumber} 
+                      />
+                    </td>
+
+                    <td className="px-8 py-5 whitespace-nowrap align-middle">
+                      <ExpiryCell 
+                        date={emp.workPermitExpiry} 
+                        idNumber={emp.workPermitNumber} 
+                      />
+                    </td>
+
+                    <td className="px-8 py-5 whitespace-nowrap align-middle">
+                      <ExpiryCell 
+                        date={emp.passportExpiry} 
+                        idNumber={emp.passportNumber} 
+                      />
+                    </td>
+
+                    <td className="px-8 py-5 whitespace-nowrap align-middle">
+                      <ExpiryCell 
+                        date={emp.healthInsuranceExpiry} 
+                        idNumber={emp.healthInsuranceNumber} 
+                      />
+                    </td>
+
+                    <td className="px-8 py-5 whitespace-nowrap align-middle">
+                      <EmployeeRowActions 
+                        employee={emp} 
+                        branchId={branchId} 
+                        onManageClick={openManageModal} // ✅ FIX: Passes the function down
+                      />
+                    </td>
+
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+
+      {/* ✅ NEW: Modal Rendering */}
+      {isManageOpen && selectedEmp && (
+        <ManageEmployeeModal
+          employee={selectedEmp}
+          branchId={branchId}
+          onClose={closeManageModal}
+          onSuccess={() => {
+            if (onRefresh) {
+              onRefresh(); // Trigger table reload if parent provided it
+            } else {
+              window.location.reload(); // Fallback reload
+            }
+          }}
+        />
+      )}
+    </>
   );
 }

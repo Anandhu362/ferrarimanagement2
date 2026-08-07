@@ -66,6 +66,11 @@ export const sendManualEmployeeAlert = async (branchId, employeeId) => {
   return await api.post(`/api/employees/${branchId}/alert/${employeeId}`);
 };
 
+// ✅ NEW: Exported API function to handle updating employee compliance documents
+export const updateEmployeeDocuments = async (branchId, employeeId, payload) => {
+  return await api.patch(`/api/employees/${encodeURIComponent(branchId)}/${encodeURIComponent(employeeId)}`, payload);
+};
+
 // ----------------------------------------------------------------------
 // ✅ NEW: Mail Configuration API Helpers
 // ----------------------------------------------------------------------
