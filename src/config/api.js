@@ -34,6 +34,9 @@ export const ENDPOINTS = {
   
   // ✅ NEW: Reserve Vault Endpoints
   RESERVE_REVERSAL: '/api/reserve/reverse-inflow',
+
+  // ✅ NEW: Mail Configuration Endpoints
+  MAIL_CONFIG: '/api/mail-config',
 };
 
 // ✅ NEW: Exported API function to handle the Reserve Inflow Reversal
@@ -61,6 +64,22 @@ export const getBankBalanceForDate = async (branchId, date) => {
 // ✅ NEW: Exported API function to trigger a manual WhatsApp document expiry alert
 export const sendManualEmployeeAlert = async (branchId, employeeId) => {
   return await api.post(`/api/employees/${branchId}/alert/${employeeId}`);
+};
+
+// ----------------------------------------------------------------------
+// ✅ NEW: Mail Configuration API Helpers
+// ----------------------------------------------------------------------
+
+export const getMailConfig = async (branchId) => {
+  return await api.get(`${ENDPOINTS.MAIL_CONFIG}/${encodeURIComponent(branchId)}`);
+};
+
+export const saveMailConfig = async (branchId, payload) => {
+  return await api.post(`${ENDPOINTS.MAIL_CONFIG}/${encodeURIComponent(branchId)}`, payload);
+};
+
+export const testMailConfig = async (branchId) => {
+  return await api.post(`${ENDPOINTS.MAIL_CONFIG}/${encodeURIComponent(branchId)}/test`);
 };
 
 export default api;

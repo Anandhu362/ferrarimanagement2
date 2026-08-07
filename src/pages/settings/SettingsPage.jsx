@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../config/api'; 
-// ✅ IMPORTED NEW COMPONENT
 import AlertRoutingCard from '../../components/settings/AlertRoutingCard';
+import MailRoutingCard from '../../components/settings/MailRoutingCard';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -140,9 +140,10 @@ export default function SettingsPage() {
     addTerminalLog("> Terminating WhatsApp socket...");
     try {
       await api.post(`/api/whatsapp/disconnect/${encodeURIComponent(branch)}`);
-      setWaStatus('DISCONNECTED');
+      // ✅ FIX: Update local state to match the new backend SUSPENDED status
+      setWaStatus('SUSPENDED');
       setQrCode(null);
-      addTerminalLog("✓ WhatsApp Engine: Disconnected.");
+      addTerminalLog("✓ WhatsApp Engine: Suspended.");
     } catch (error) {
       addTerminalLog("❌ WhatsApp Disconnect Error.");
     }
@@ -263,7 +264,11 @@ export default function SettingsPage() {
                 <div>
                   <h5 className="text-sm font-semibold text-slate-900">WhatsApp Engine</h5>
                   <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                    Session: <span className={waStatus === 'CONNECTED' ? 'text-emerald-500' : 'text-slate-700'}>{waStatus.replace('_', ' ')}</span>
+                    Session: <span className={
+                      waStatus === 'CONNECTED' ? 'text-emerald-500' : 
+                      waStatus === 'SUSPENDED' ? 'text-amber-500' : // ✅ FIX: Styled the suspended state color
+                      'text-slate-700'
+                    }>{waStatus.replace('_', ' ')}</span>
                   </p>
                 </div>
               </div>
@@ -297,10 +302,16 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* ✅ NEW: Modular Alert Routing Component */}
+          {/* Modular Alert Routing Component */}
           <AlertRoutingCard 
             activeBranch={activeBranch} 
             waStatus={waStatus} 
+            addTerminalLog={addTerminalLog} 
+          />
+
+          {/* Mail Alert Routing Component */}
+          <MailRoutingCard 
+            activeBranch={activeBranch} 
             addTerminalLog={addTerminalLog} 
           />
 
