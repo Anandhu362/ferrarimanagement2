@@ -38,6 +38,7 @@ export default function AlertRoutingCard({ activeBranch, waStatus, addTerminalLo
   const fetchAlertNumbers = async (targetBranch, isSubscribed = { current: true }) => {
     const branchIdStr = targetBranch || getBranchId(activeBranch);
     
+    // 🛑 Guard against premature fetching
     if (!branchIdStr || branchIdStr === 'No Branch Selected' || branchIdStr === 'Loading...') return;
     
     setLoading(true);

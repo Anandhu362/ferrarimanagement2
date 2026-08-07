@@ -10,7 +10,8 @@ export default function MailRoutingCard({ activeBranch, addTerminalLog }) {
 
   // Fetch existing mail config on load
   useEffect(() => {
-    if (!activeBranch || activeBranch === 'No Branch Selected') return;
+    // 🛑 Added 'Loading...' to prevent the premature 404 error
+    if (!activeBranch || activeBranch === 'No Branch Selected' || activeBranch === 'Loading...') return;
 
     const fetchConfig = async () => {
       try {
