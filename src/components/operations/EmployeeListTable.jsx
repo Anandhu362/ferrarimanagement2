@@ -187,7 +187,7 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null);
 
-  // ✅ NEW: Modal State Management (Delete)
+  // Modal State Management (Delete)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -196,7 +196,10 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
     const nameMatch = emp.name?.toLowerCase().includes(searchQuery.toLowerCase());
     const nationalityMatch = emp.nationality?.toLowerCase().includes(searchQuery.toLowerCase());
     const mobileMatch = emp.mobile && emp.mobile.includes(searchQuery);
-    return nameMatch || nationalityMatch || mobileMatch;
+    // ✅ NEW: Added visa area search filter
+    const visaAreaMatch = emp.visaArea && emp.visaArea !== 'NIL' && emp.visaArea.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return nameMatch || nationalityMatch || mobileMatch || visaAreaMatch;
   });
 
   const openManageModal = (employee) => {
@@ -209,7 +212,7 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
     setSelectedEmp(null);
   };
 
-  // ✅ NEW: Delete Handlers
+  // Delete Handlers
   const openDeleteModal = (employee) => {
     setEmployeeToDelete(employee);
     setIsDeleteModalOpen(true);
@@ -267,6 +270,8 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
             <thead>
               <tr className="bg-slate-50 text-slate-600 text-[11px] font-bold uppercase tracking-wider">
                 <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Employee Details</th>
+                {/* ✅ NEW: Visa Area Column Header */}
+                <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Visa Area</th>
                 <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Emirates ID</th>
                 <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Work Permit</th>
                 <th className="px-8 py-4 whitespace-nowrap border-b border-slate-100">Passport</th>
@@ -277,7 +282,8 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
             <tbody className="divide-y divide-slate-100/80 text-sm">
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-8 py-12 text-center text-slate-500 font-medium">No employees match your search.</td>
+                  {/* ✅ UPDATED: colSpan to 7 to account for new column */}
+                  <td colSpan="7" className="px-8 py-12 text-center text-slate-500 font-medium">No employees match your search.</td>
                 </tr>
               ) : (
                 filteredEmployees.map((emp, index) => (
@@ -299,6 +305,17 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
                           )}
                         </div>
                       </div>
+                    </td>
+
+                    {/* ✅ NEW: Visa Area Data Cell */}
+                    <td className="px-8 py-5 whitespace-nowrap align-middle">
+                      {emp.visaArea && emp.visaArea !== 'NIL' ? (
+                        <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100/60 px-2 py-1 rounded-md tracking-wide">
+                          {emp.visaArea}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs font-medium">-</span>
+                      )}
                     </td>
 
                     <td className="px-8 py-5 whitespace-nowrap align-middle">
@@ -334,7 +351,7 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
                         employee={emp} 
                         branchId={branchId} 
                         onManageClick={openManageModal} 
-                        onDeleteClick={openDeleteModal} // ✅ FIX: Passed delete handler
+                        onDeleteClick={openDeleteModal}
                       />
                     </td>
 
@@ -362,7 +379,7 @@ export default function EmployeeListTable({ employees, branchId, onRefresh }) {
         />
       )}
 
-      {/* ✅ NEW: Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && employeeToDelete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 animate-in fade-in duration-200">
           <div 

@@ -7,6 +7,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
     name: '',
     nationality: '',
     mobile: '',
+    visaArea: '', // ✅ ADDED: Visa Area field
     emiratesIdNumber: '',
     emiratesIdExpiry: '',
     workPermitNumber: '',
@@ -20,6 +21,10 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
   const [formData, setFormData] = useState(initialState);
   const [errors, setErrors] = useState({});
   const [openCalendar, setOpenCalendar] = useState(null);
+  
+  // ✅ NEW: Custom Dropdown State for Visa Area
+  const [isVisaDropdownOpen, setIsVisaDropdownOpen] = useState(false);
+  const emiratesList = ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Umm Al-Quwain', 'Fujairah', 'Ras Al Khaimah'];
 
   if (!isOpen) return null;
 
@@ -81,6 +86,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
 
     // Sanitize optional fields if they exist
     sanitized.mobile = sanitized.mobile.trim();
+    sanitized.visaArea = sanitized.visaArea.trim().toUpperCase(); 
     sanitized.emiratesIdNumber = sanitized.emiratesIdNumber.trim();
     sanitized.workPermitNumber = sanitized.workPermitNumber.trim();
     sanitized.passportNumber = sanitized.passportNumber.trim().toUpperCase();
@@ -99,6 +105,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
   const handleClose = () => {
     setFormData(initialState);
     setErrors({});
+    setIsVisaDropdownOpen(false);
     onClose();
   };
 
@@ -130,12 +137,52 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
                   <input type="text" name="name" value={formData.name} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="e.g. AHMED HASSAN" className={`w-full bg-slate-50 border ${errors.name ? 'border-rose-300 focus:ring-rose-200' : 'border-slate-200 focus:ring-brand-dark/20'} text-sm font-medium text-slate-900 rounded-xl px-4 py-3 outline-none focus:ring-2 transition-all`} />
                   {errors.name && <p className="text-[10px] text-rose-500 mt-1 font-medium">{errors.name}</p>}
                 </div>
+                
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1.5">Nationality <span className="text-rose-500">*</span></label>
                   <input type="text" name="nationality" value={formData.nationality} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="e.g. INDIA" className={`w-full bg-slate-50 border ${errors.nationality ? 'border-rose-300 focus:ring-rose-200' : 'border-slate-200 focus:ring-brand-dark/20'} text-sm font-medium text-slate-900 rounded-xl px-4 py-3 outline-none focus:ring-2 transition-all`} />
                   {errors.nationality && <p className="text-[10px] text-rose-500 mt-1 font-medium">{errors.nationality}</p>}
                 </div>
-                <div className="md:col-span-2">
+
+                {/* ✅ UPDATED: Premium Custom Visa Area Dropdown */}
+                <div className="relative">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Visa Area (Optional)</label>
+                  <button 
+                    type="button"
+                    onClick={() => setIsVisaDropdownOpen(!isVisaDropdownOpen)}
+                    onKeyDown={handleKeyDown}
+                    className={`w-full flex justify-between items-center bg-slate-50 border ${isVisaDropdownOpen ? 'border-slate-900 ring-2 ring-slate-900/20' : 'border-slate-200 focus:ring-2 focus:ring-brand-dark/20'} text-sm font-medium text-slate-900 rounded-xl px-4 py-3 outline-none transition-all text-left`}
+                  >
+                    {formData.visaArea || <span className="text-slate-400">Select Emirate</span>}
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${isVisaDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {isVisaDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setIsVisaDropdownOpen(false)}></div>
+                      <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-[0_15px_40px_-10px_rgba(0,0,0,0.1)] z-20 py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        {emiratesList.map(emirate => (
+                          <button
+                            key={emirate}
+                            type="button"
+                            tabIndex="-1"
+                            onClick={() => {
+                              handleChange({ target: { name: 'visaArea', value: emirate } });
+                              setIsVisaDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors ${formData.visaArea === emirate ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-50'}`}
+                          >
+                            {emirate}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1.5">Mobile Number (Optional)</label>
                   <input type="text" name="mobile" value={formData.mobile} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="e.g. 050 123 4567" className="w-full bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-dark/20 transition-all" />
                 </div>
@@ -156,7 +203,6 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
                     <input type="text" name="emiratesIdNumber" value={formData.emiratesIdNumber} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="784-XXXX-XXXXXXX-X" className="w-full bg-white border border-slate-200 text-sm font-medium text-slate-900 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 transition-all" />
                   </div>
                   <div className="relative">
-                    {/* ✅ UPDATED: Removed Mandatory Asterisk */}
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">EID Expiry Date (Optional)</label>
                     <button 
                       type="button"
@@ -178,7 +224,6 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
                     <input type="text" name="workPermitNumber" value={formData.workPermitNumber} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="e.g. 121751570" className="w-full bg-white border border-slate-200 text-sm font-medium text-slate-900 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 transition-all" />
                   </div>
                   <div className="relative">
-                    {/* ✅ UPDATED: Removed Mandatory Asterisk */}
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">Work Permit Expiry Date (Optional)</label>
                     <button 
                       type="button"
@@ -200,7 +245,6 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
                     <input type="text" name="passportNumber" value={formData.passportNumber} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="e.g. S7874540" className="w-full bg-white border border-slate-200 text-sm font-medium text-slate-900 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 transition-all uppercase" />
                   </div>
                   <div className="relative">
-                    {/* ✅ UPDATED: Removed Mandatory Asterisk */}
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">Passport Expiry Date (Optional)</label>
                     <button 
                       type="button"
@@ -215,14 +259,13 @@ export default function AddEmployeeModal({ isOpen, onClose, onAdd, isSubmitting 
                   </div>
                 </div>
 
-                {/* ✅ NEW: Health Insurance */}
+                {/* Health Insurance */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-slate-50/50 border border-slate-100 rounded-2xl">
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">Health Insurance No. (Optional)</label>
                     <input type="text" name="healthInsuranceNumber" value={formData.healthInsuranceNumber} onChange={handleChange} onKeyDown={handleKeyDown} placeholder="e.g. INS-998822" className="w-full bg-white border border-slate-200 text-sm font-medium text-slate-900 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-dark/20 transition-all uppercase" />
                   </div>
                   <div className="relative">
-                    {/* ✅ UPDATED: Removed Mandatory Asterisk */}
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">Insurance Expiry Date (Optional)</label>
                     <button 
                       type="button"
