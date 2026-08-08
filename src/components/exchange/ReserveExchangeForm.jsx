@@ -1,5 +1,5 @@
 // frontend/src/components/exchange/ReserveExchangeForm.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import api from '../../config/api';
 
 const RESERVE_TIERS = [
@@ -8,70 +8,23 @@ const RESERVE_TIERS = [
   { value: 1, label: '1', type: 'coin' } // Represents Coins/1 AED
 ];
 
-// ✅ UPDATED: Restricted to only CEO Vault
+// Restricted to only CEO Vault
 const VAULT_OPTIONS = [
   { value: 'ceo', label: 'CEO Vault' }
 ];
 
 export default function ReserveExchangeForm({ onTransactionSuccess }) {
-  const [action, setAction] = useState('ADD'); // 'ADD' or 'TAKE'
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState({ 10: '', 5: '', 1: '' });
   
-  // ✅ UPDATED: Default targetVault initialized to 'ceo'
   const [targetVault, setTargetVault] = useState('ceo');
   const [isVaultDropdownOpen, setIsVaultDropdownOpen] = useState(false);
   
-  const [vaultStock, setVaultStock] = useState({ 10: 0, 5: 0, 1: 0 });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' });
 
-  // Fetch current Reserve stock to enforce limits during 'TAKE'
-  const fetchReserveStock = async () => {
-    try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
-      const response = await api.get(`/api/vault/summary?branchId=${encodeURIComponent(activeBranch)}&vaultType=reserve`);
-      
-      if (response.data.success) {
-        const stockMap = { 10: 0, 5: 0, 1: 0 };
-        response.data.data.forEach(item => {
-          const val = parseFloat(item.denomination_value);
-          if (stockMap[val] !== undefined) {
-            stockMap[val] = parseInt(item.total_quantity);
-          }
-        });
-        setVaultStock(stockMap);
-      }
-    } catch (error) {
-      console.error("Error fetching reserve stock:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchReserveStock();
-  }, []);
-
-  // Recalculate stock and clear inputs when toggling action
-  const handleActionToggle = (newAction) => {
-    setAction(newAction);
-    setNotes({ 10: '', 5: '', 1: '' });
-    if (newAction === 'TAKE') {
-      fetchReserveStock();
-    }
-  };
-
   const handleNoteChange = (value, qtyStr) => {
-    let cleanQty = qtyStr.replace(/[^0-9]/g, '');
-    
-    // Enforce stock limits instantly if taking from the vault
-    if (action === 'TAKE' && cleanQty !== '') {
-      const numQty = parseInt(cleanQty, 10);
-      const maxAvailable = vaultStock[value] || 0;
-      if (numQty > maxAvailable) {
-        cleanQty = maxAvailable.toString();
-      }
-    }
-    
+    const cleanQty = qtyStr.replace(/[^0-9]/g, '');
     setNotes(prev => ({ ...prev, [value]: cleanQty }));
   };
 
@@ -91,7 +44,7 @@ export default function ReserveExchangeForm({ onTransactionSuccess }) {
       if (!activeBranch) throw new Error("No active branch selected.");
 
       const payload = {
-        action,
+        action: 'ADD', // Hardcoded to always ADD
         notes,
         description: description.trim(),
         branchId: activeBranch,
@@ -103,14 +56,13 @@ export default function ReserveExchangeForm({ onTransactionSuccess }) {
       setModal({ 
         isOpen: true, 
         type: 'success', 
-        message: `Successfully ${action === 'ADD' ? 'added to' : 'taken from'} the Reserve Vault.` 
+        message: `Successfully added to the Reserve Vault.` 
       });
       
       // Reset Form
       setDescription('');
       setNotes({ 10: '', 5: '', 1: '' });
-      setTargetVault('ceo'); // ✅ UPDATED: Reset back to 'ceo'
-      fetchReserveStock(); // Refresh local stock limits
+      setTargetVault('ceo');
       
       // Notify parent to refresh other components if necessary
       if (onTransactionSuccess) onTransactionSuccess();
@@ -133,36 +85,12 @@ export default function ReserveExchangeForm({ onTransactionSuccess }) {
         </div>
       </div>
 
-      {/* Action Toggle */}
-      <div className="flex p-1 bg-slate-100/80 rounded-xl mb-6">
-        <button
-          onClick={() => handleActionToggle('ADD')}
-          className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-            action === 'ADD' 
-              ? 'bg-white text-indigo-600 shadow shadow-slate-200/50' 
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Add to Reserve
-        </button>
-        <button
-          onClick={() => handleActionToggle('TAKE')}
-          className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-            action === 'TAKE' 
-              ? 'bg-white text-amber-600 shadow shadow-slate-200/50' 
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Take from Reserve
-        </button>
-      </div>
-
       <div className="space-y-6">
         
         {/* Dynamic Cross-Vault Target Dropdown */}
         <div className="space-y-2 relative z-30">
           <label className="block text-xs font-semibold text-slate-700 uppercase tracking-widest">
-            {action === 'ADD' ? 'Source Vault' : 'Destination Vault'}
+            Source Vault
           </label>
           <div 
             onClick={() => setIsVaultDropdownOpen(!isVaultDropdownOpen)}
@@ -225,11 +153,6 @@ export default function ReserveExchangeForm({ onTransactionSuccess }) {
                 onChange={(e) => handleNoteChange(tier.value, e.target.value)}
                 className="w-full text-center font-bold text-slate-900 bg-white border border-slate-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
               />
-              {action === 'TAKE' && (
-                <div className="mt-2 text-center text-[10px] font-medium text-slate-400">
-                  Avail: <span className={vaultStock[tier.value] > 0 ? 'text-amber-500' : 'text-slate-300'}>{vaultStock[tier.value]}</span>
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -250,7 +173,7 @@ export default function ReserveExchangeForm({ onTransactionSuccess }) {
         <div className="pt-4 mt-2 border-t border-slate-100 flex items-center justify-between relative z-10">
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Transaction Value</p>
-            <p className={`text-xl font-bold ${action === 'ADD' ? 'text-indigo-600' : 'text-amber-500'}`}>
+            <p className="text-xl font-bold text-indigo-600">
               AED {totalValue.toLocaleString(undefined, {minimumFractionDigits: 2})}
             </p>
           </div>
@@ -260,13 +183,11 @@ export default function ReserveExchangeForm({ onTransactionSuccess }) {
             disabled={!canSubmit || isSubmitting}
             className={`px-6 py-3 rounded-xl font-medium text-sm transition-all shadow-sm ${
               canSubmit 
-                ? action === 'ADD'
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  : 'bg-amber-500 text-white hover:bg-amber-600'
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'
             }`}
           >
-            {isSubmitting ? 'Processing...' : `Confirm ${action}`}
+            {isSubmitting ? 'Processing...' : `Confirm ADD`}
           </button>
         </div>
       </div>
