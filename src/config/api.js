@@ -39,19 +39,27 @@ export const ENDPOINTS = {
   MAIL_CONFIG: '/api/mail-config',
 };
 
+// ----------------------------------------------------------------------
+// ✅ MASTER LEDGER LOGGING & EDITING
+// ----------------------------------------------------------------------
+
+// Comprehensive Inflow Edit (Triggers Backend Audit Log)
+export const editInflowRecord = async (branchId, recordId, payload) => {
+  return await api.patch(`/api/ledger/edit/inflow/${encodeURIComponent(branchId)}/${encodeURIComponent(recordId)}`, payload);
+};
+
+// Comprehensive Expense Edit (Triggers Backend Audit Log)
+export const editExpenseRecord = async (branchId, recordId, payload) => {
+  return await api.patch(`/api/ledger/edit/expense/${encodeURIComponent(branchId)}/${encodeURIComponent(recordId)}`, payload);
+};
+
+// ----------------------------------------------------------------------
+// PRE-EXISTING ENDPOINTS
+// ----------------------------------------------------------------------
+
 // ✅ NEW: Exported API function to handle the Reserve Inflow Reversal
 export const reverseReserveInflow = async (payload) => {
   return await api.post(ENDPOINTS.RESERVE_REVERSAL, payload);
-};
-
-// ✅ UPDATED: Exported API function to handle updating the Inflow Date (targeting live_ledger)
-export const updateInflowDate = async (id, newDate, branchId) => {
-  return await api.patch(`/api/inflow/${id}/date`, { newDate, branchId });
-};
-
-// ✅ NEW: Exported API function to handle updating the Expense Date (targeting live_ledger)
-export const updateExpenseDate = async (id, newDate, branchId) => {
-  return await api.patch(`/api/expenses/${id}/date`, { newDate, branchId });
 };
 
 // ✅ UPDATED: Exported API function to fetch the bank closing balance for a specific date

@@ -1,6 +1,6 @@
 // frontend/src/components/inflow/EditInflowDateModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import api from '../../config/api';
+import { editInflowRecord } from '../../config/api'; // ✅ IMPORTED NEW AUDIT-LOGGED FUNCTION
 
 export default function EditInflowDateModal({ isOpen, onClose, inflow, onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -88,7 +88,6 @@ export default function EditInflowDateModal({ isOpen, onClose, inflow, onSuccess
     setError(null);
 
     try {
-      // ✅ Retrieve the branchId from localStorage
       const activeBranch = localStorage.getItem('active_branch');
       if (!activeBranch) throw new Error('Active branch not found. Please log in again.');
       if (!selectedDate) throw new Error('Please select a valid date.');
@@ -100,10 +99,9 @@ export default function EditInflowDateModal({ isOpen, onClose, inflow, onSuccess
       
       const combinedDateTimeString = `${year}-${month}-${day} ${originalTime}`;
 
-      // ✅ Call the newly created backend patch route and include branchId
-      const response = await api.patch(`/api/inflow/${inflow.id}/date`, {
-        newDate: combinedDateTimeString,
-        branchId: activeBranch
+      // ✅ ROUTE THROUGH CENTRALIZED AUDIT LOGGER
+      const response = await editInflowRecord(activeBranch, inflow.id, {
+        date: combinedDateTimeString
       });
 
       if (response.data.success) {

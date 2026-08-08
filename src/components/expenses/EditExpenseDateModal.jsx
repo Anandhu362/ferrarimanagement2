@@ -1,6 +1,6 @@
 // frontend/src/components/expenses/EditExpenseDateModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import api from '../../config/api';
+import { editExpenseRecord } from '../../config/api'; // ✅ Fix: Import the new audit-logged API function
 
 export default function EditExpenseDateModal({ isOpen, onClose, expense, onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -101,11 +101,9 @@ export default function EditExpenseDateModal({ isOpen, onClose, expense, onSucce
       
       const combinedDateTimeString = `${year}-${month}-${day} ${originalTime}`;
 
-      // ✅ Send branchId, id, and newDate in the body to match the expenseController
-      const response = await api.put('/api/expenses/update-date', {
-        branchId: activeBranch,
-        id: expense.id,
-        newDate: combinedDateTimeString
+      // ✅ Fix: Use the new centralized audit logger instead of the raw api.put
+      const response = await editExpenseRecord(activeBranch, expense.id, {
+        date: combinedDateTimeString
       });
 
       if (response.data.success) {
