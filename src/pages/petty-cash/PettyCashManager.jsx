@@ -53,7 +53,8 @@ export default function PettyCashManager() {
   // NEW: Fetch live balance for validation
   const fetchBalance = async () => {
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) return;
       // Adjust this endpoint to match your dashboard balance fetcher
       const response = await api.get(`/api/petty-cash/balance?branchId=${activeBranch}`);
       if (response.data && response.data.success) {
@@ -118,7 +119,12 @@ export default function PettyCashManager() {
     setIsSubmitting(true);
 
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) {
+        setModal({ isOpen: true, type: 'error', message: 'Active branch is missing. Please log in again.' });
+        setIsSubmitting(false);
+        return;
+      }
       
       const payload = {
         date: formData.date,

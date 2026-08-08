@@ -11,7 +11,8 @@ export default function RecentOrders({ refreshTrigger }) {
     setLoading(true);
     setError(null);
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) return;
       const response = await api.get(`/api/orders/recent?branchId=${encodeURIComponent(activeBranch)}&limit=5`);
       
       if (response.data && response.data.success) {

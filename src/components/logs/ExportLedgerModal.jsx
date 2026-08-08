@@ -20,7 +20,12 @@ export default function ExportLedgerModal({ isOpen, onClose }) {
     setError(null);
 
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) {
+        setError('Active branch is missing');
+        setIsDownloading(false);
+        return;
+      }
       
       const formattedDate = typeof selectedDate === 'string' 
         ? selectedDate 

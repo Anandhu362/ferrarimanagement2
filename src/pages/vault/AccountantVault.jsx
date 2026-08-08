@@ -29,7 +29,8 @@ export default function AccountantVault() {
   const [statusModal, setStatusModal] = useState({ isOpen: false, type: 'success', message: '' });
 
   useEffect(() => {
-    const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+    const activeBranch = localStorage.getItem('active_branch');
+    if (!activeBranch) return;
     
     // ✅ 1. Point directly to the live Firestore collection
     const tempVaultRef = collection(db, 'branches', activeBranch, 'temp_vault_inventory');
@@ -75,7 +76,11 @@ export default function AccountantVault() {
     setShowConfirmDialog(false);
 
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) {
+        setStatusModal({ isOpen: true, type: 'error', message: 'Active branch is missing. Please log in again.' });
+        return;
+      }
       
       // We still POST to the backend so the secure transaction and BigQuery outbox logging happens
       const response = await api.post('/api/accountant-vault/transfer', { 

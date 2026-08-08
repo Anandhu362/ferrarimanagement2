@@ -19,7 +19,8 @@ export default function DailyDenominationsCard({ selectedDates = [] }) {
     const fetchDailyDenoms = async () => {
       setLoading(true);
       try {
-        const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+        const activeBranch = localStorage.getItem('active_branch');
+        if (!activeBranch) return;
         let totalSum = 0;
         const aggregatedDenoms = {}; // Map to accumulate quantities across multiple days
         

@@ -121,7 +121,12 @@ export default function MassInflow() {
     
     setIsSubmitting(true);
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) {
+        setModal({ isOpen: true, type: 'error', message: 'Active branch is missing. Please log in again.' });
+        setIsSubmitting(false);
+        return;
+      }
 
       const response = await api.post('/api/inflow/bulk', { 
         transactions: rows, 

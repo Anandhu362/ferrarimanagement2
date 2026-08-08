@@ -56,7 +56,11 @@ export default function BankTransactionForm({ onSuccess }) {
     setIsSubmitting(true);
 
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) {
+        setError('Active branch is missing. Please log in again.');
+        return;
+      }
       
       const response = await api.post('/api/vault/transaction', {
         branchId: activeBranch,

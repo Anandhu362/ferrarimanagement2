@@ -53,7 +53,8 @@ export default function ExpenseForm() {
   // Fetch stock specifically for the selected vault type
   const fetchStock = async () => {
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) return;
       const response = await api.get(`/api/vault/summary?branchId=${encodeURIComponent(activeBranch)}&vaultType=${expenseData.vaultType}`);
       const result = response.data;
       
@@ -121,7 +122,12 @@ export default function ExpenseForm() {
     setIsSubmitting(true);
 
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) {
+        setModal({ isOpen: true, type: 'error', message: 'Active branch is missing. Please log in again.' });
+        setIsSubmitting(false);
+        return;
+      }
       
       const payload = {
         vaultType: expenseData.vaultType,

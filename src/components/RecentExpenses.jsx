@@ -10,7 +10,8 @@ export default function RecentExpenses() {
   const fetchExpenses = async () => {
     try {
       // Pull active branch from local storage
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) return;
       
       // ✅ Replaced raw fetch with centralized Axios api.get
       const response = await api.get(`/api/expenses/recent?branchId=${encodeURIComponent(activeBranch)}`);

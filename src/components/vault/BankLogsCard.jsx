@@ -36,7 +36,8 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
   const fetchLogs = async (dates = selectedDates) => {
     setLoading(true);
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) return;
       let endpoint = `/api/vault/bank-logs?branchId=${encodeURIComponent(activeBranch.trim())}`;
       
       if (dates && dates.length > 0) {
@@ -78,7 +79,8 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
 
   const handleSaveChanges = async (updatedData) => {
     try {
-      const rawBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const rawBranch = localStorage.getItem('active_branch');
+      if (!rawBranch) return;
       const safeBranch = encodeURIComponent(rawBranch.trim());
       const safeLogId = encodeURIComponent(updatedData.logId.trim());
 

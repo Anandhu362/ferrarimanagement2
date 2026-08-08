@@ -82,7 +82,12 @@ export default function PettyCashReversalModal({ isOpen, onClose, onSuccess, cur
     setErrorMsg('');
 
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) {
+        setErrorMsg('Active branch is missing. Please log in again.');
+        setIsSubmitting(false);
+        return;
+      }
       
       const denominationsToAdd = {};
       Object.entries(noteCounts).forEach(([value, qty]) => {

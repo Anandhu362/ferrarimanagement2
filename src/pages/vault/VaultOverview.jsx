@@ -30,7 +30,8 @@ export default function VaultOverview() {
   const fetchReserveLogs = async () => {
     setReserveLoading(true);
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) return;
       const reserveEndpoint = `/api/logs/reserve?branchId=${encodeURIComponent(activeBranch)}`;
       const response = await api.get(reserveEndpoint);
       
@@ -48,7 +49,8 @@ export default function VaultOverview() {
     const fetchVaultData = async () => {
       try {
         // Grab the active branch to ensure we don't fetch global sums
-        const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+        const activeBranch = localStorage.getItem('active_branch');
+        if (!activeBranch) return;
         
         // ✅ Fetches data from the CEO Vault table
         const response = await api.get(`/api/vault/summary?branchId=${encodeURIComponent(activeBranch)}&vaultType=ceo`);

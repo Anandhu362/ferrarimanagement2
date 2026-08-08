@@ -16,7 +16,8 @@ export default function ReserveVaultCard() {
   useEffect(() => {
     const fetchReserveData = async () => {
       try {
-        const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+        const activeBranch = localStorage.getItem('active_branch');
+        if (!activeBranch) return;
         
         // Fetch strictly from the new reserve collection route
         const response = await api.get(`/api/vault/summary?branchId=${encodeURIComponent(activeBranch)}&vaultType=reserve`);

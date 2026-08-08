@@ -295,7 +295,12 @@ export default function OrderForm() {
     
     setIsSubmitting(true);
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) {
+        setModal({ isOpen: true, type: 'error', message: 'Active branch is missing. Please log in again.' });
+        setIsSubmitting(false);
+        return;
+      }
       
       const cleanOrders = orderQueue.map(order => ({
         inventory_id: order.inventory_id,

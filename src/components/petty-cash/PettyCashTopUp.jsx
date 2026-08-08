@@ -44,7 +44,8 @@ export default function PettyCashTopUp({ onTopUpSuccess }) {
   useEffect(() => {
     const fetchVaultStock = async () => {
       try {
-        const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+        const activeBranch = localStorage.getItem('active_branch');
+        if (!activeBranch) return;
         const response = await api.get(`/api/petty-cash/vault-inventory?branchId=${activeBranch}&vaultSource=${formData.source}`);
         if (response.data.success) {
           setVaultStock(response.data.data);
@@ -113,7 +114,12 @@ export default function PettyCashTopUp({ onTopUpSuccess }) {
     setIsSubmitting(true);
 
     try {
-      const activeBranch = localStorage.getItem('active_branch') || 'DXB-MAIN';
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) {
+        setModal({ isOpen: true, type: 'error', message: 'Active branch is missing. Please log in again.' });
+        setIsSubmitting(false);
+        return;
+      }
       
       const denominationsToDeduct = {};
       Object.entries(noteCounts).forEach(([value, qty]) => {
