@@ -33,13 +33,6 @@ export default function Dashboard() {
       return;
     }
 
-    const todayStr = new Intl.DateTimeFormat('en-CA', { 
-        timeZone: 'Asia/Dubai', 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit' 
-    }).format(new Date());
-
     // A. Listen to Main CEO Vault
     const vaultRef = collection(db, 'branches', activeBranch, 'vault_inventory');
     const unsubVault = onSnapshot(vaultRef, (snapshot) => {
@@ -83,26 +76,17 @@ export default function Dashboard() {
       }
     });
 
-    // D. Listen to Today's Inflow/Outflow Aggregator
-    const statsRef = doc(db, 'branches', activeBranch, 'daily_stats', todayStr);
-    const unsubStats = onSnapshot(statsRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setTodayInflow(data.todayInflow || 0);
-        setTodayExpenses(data.todayExpenses || 0);
-      }
-    });
+    // ✅ FIX 1: Removed the old 'daily_stats' listener that was overwriting data with 0
 
     return () => {
       unsubVault();
       unsubReserve();
       unsubPC();
-      unsubStats();
     };
   }, []);
 
   // ==========================================================================
-  // 2. BIGQUERY API CALL (Historical Charts and Logs)
+  // 2. BACKEND API CALL (Historical Charts, Logs, and Today's Stats)
   // ==========================================================================
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -128,6 +112,10 @@ export default function Dashboard() {
           }
           
           setCashFlowTrend(result.data.cashFlowTrend || []);
+          
+          // ✅ FIX 2: Added state setters to actually update the UI with backend data
+          setTodayInflow(result.data.todayInflow || 0);
+          setTodayExpenses(result.data.todayExpenses || 0);
         }
       } catch (error) {
         console.error("Error fetching dashboard analytical data:", error);
