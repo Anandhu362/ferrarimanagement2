@@ -87,7 +87,7 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
       const response = await api.put(`/api/vault/logs/${safeBranch}/${safeLogId}`, {
         newAmount: updatedData.newAmount,
         newDate: updatedData.newDate,
-        // ✅ NEW: Transmit the selected transaction type (CREDIT / DEBIT) to the backend
+        // ✅ Transmit the selected transaction type (CREDIT / DEBIT) to the backend
         newType: updatedData.newType 
       });
 
@@ -270,6 +270,13 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
                 </div>
 
                 <div className="flex items-center gap-3 pl-4">
+                  {/* ✅ Minimal Fintech Edited Badge conditionally rendered */}
+                  {log.isEdited && (
+                    <div className="flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-wider hidden sm:flex" title="This transaction has been edited">
+                      Edited
+                    </div>
+                  )}
+                  
                   <div className={`text-right font-bold tracking-tight text-sm sm:text-base whitespace-nowrap ${
                     isCredit ? 'text-emerald-600' : 'text-slate-900'
                   }`}>

@@ -68,7 +68,7 @@ export default function BankVaultOverview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]); 
 
-  // This function increments the trigger, forcing all useEffects to run again
+  // This function increments the trigger, forcing all useEffects and child components to sync
   const handleTransactionSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
   };
@@ -180,7 +180,7 @@ export default function BankVaultOverview() {
 
         {/* RIGHT COLUMN: Vertical Log Container */}
         <div className="xl:col-span-7 h-full">
-          {/* ✅ FIX: Passed handleTransactionSuccess to onEditSuccess */}
+          {/* Note: BankLogsCard inherently handles its own fetching. We just pass down the orchestration callbacks. */}
           <BankLogsCard 
             refreshTrigger={refreshTrigger} 
             onDateChange={(date) => setSelectedDate(date)} 
