@@ -1,5 +1,5 @@
 // frontend/src/components/inflow/GroupEntry.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../../config/api'; // ✅ Centralized API Import
 
 const DENOMINATIONS = [
@@ -28,13 +28,20 @@ const isValidAmount = (amount) => {
   return !isNaN(val) && val > 0;
 };
 
+// ✅ NEW: Strict ID Generators for Idempotency
+const generateTrxId = () => `TRX-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+const generateExpId = () => `EXP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
 export default function GroupEntry() {
-  // Updated state initialization to match the new logical order
-  const [invoices, setInvoices] = useState([{ id: Date.now(), companyName: '', invoiceNo: '', amount: '' }]);
-  const [expenses, setExpenses] = useState([{ id: Date.now() + 1, description: '', amount: '' }]);
+  // ✅ UPDATED: Initialize rows with secure frontend-generated IDs
+  const [invoices, setInvoices] = useState([{ id: generateTrxId(), companyName: '', invoiceNo: '', amount: '' }]);
+  const [expenses, setExpenses] = useState([{ id: generateExpId(), description: '', amount: '' }]);
   const [showExpenses, setShowExpenses] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' });
+  
+  // ✅ NEW: Hard lock to prevent double-click race conditions entirely
+  const submitLock = useRef(false);
   
   // Batch Date State (Defaults to Today)
   const [batchDate, setBatchDate] = useState(new Date().toISOString().split('T')[0]);
@@ -70,7 +77,6 @@ export default function GroupEntry() {
     if (!invoices || invoices.length === 0) return false;
 
     const areInvoicesValid = invoices.every(inv => 
-      // Removed isValidString(inv.invoiceNo) to make it optional
       isValidString(inv.companyName) && 
       isValidAmount(inv.amount)
     );
@@ -100,8 +106,9 @@ export default function GroupEntry() {
     setDenominations({ ...denominations, [denomLabel]: cleanValue });
   };
 
-  const addInvoiceRow = () => setInvoices([...invoices, { id: Date.now(), companyName: '', invoiceNo: '', amount: '' }]);
-  const addExpenseRow = () => setExpenses([...expenses, { id: Date.now(), description: '', amount: '' }]);
+  // ✅ UPDATED: Add new rows with secure IDs
+  const addInvoiceRow = () => setInvoices([...invoices, { id: generateTrxId(), companyName: '', invoiceNo: '', amount: '' }]);
+  const addExpenseRow = () => setExpenses([...expenses, { id: generateExpId(), description: '', amount: '' }]);
 
   const removeInvoiceRow = (id) => {
     if (invoices.length > 1) setInvoices(invoices.filter(inv => inv.id !== id));
@@ -132,8 +139,9 @@ export default function GroupEntry() {
   };
 
   const handleSubmit = async () => {
-    if (!isFormValid()) return;
+    if (!isFormValid() || submitLock.current) return;
     
+    submitLock.current = true; // Engage hard lock
     setIsSubmitting(true);
     try {
       // 1. Get the branch without the hardcoded fallback
@@ -143,6 +151,7 @@ export default function GroupEntry() {
       if (!activeBranch) {
         setModal({ isOpen: true, type: 'error', message: 'Critical Error: No active branch selected. Please log in or select a branch again.' });
         setIsSubmitting(false);
+        submitLock.current = false;
         return; 
       }
 
@@ -168,8 +177,9 @@ export default function GroupEntry() {
       if (result.success) {
         // UI updated to reflect the new real-time architecture
         setModal({ isOpen: true, type: 'success', message: 'Group Entry successfully queued to the live Outbox for processing.' });
-        setInvoices([{ id: Date.now(), companyName: '', invoiceNo: '', amount: '' }]);
-        setExpenses([{ id: Date.now() + 1, description: '', amount: '' }]);
+        // ✅ UPDATED: Reset rows with fresh IDs for the next entry
+        setInvoices([{ id: generateTrxId(), companyName: '', invoiceNo: '', amount: '' }]);
+        setExpenses([{ id: generateExpId(), description: '', amount: '' }]);
         setShowExpenses(false);
         setDenominations(DENOMINATIONS.reduce((acc, curr) => ({ ...acc, [curr.label]: '' }), {}));
       } else {
@@ -179,6 +189,7 @@ export default function GroupEntry() {
       console.error(err);
       setModal({ isOpen: true, type: 'error', message: 'Network error. Could not connect to the server.' });
     } finally {
+      submitLock.current = false; // Release hard lock
       setIsSubmitting(false);
     }
   };
