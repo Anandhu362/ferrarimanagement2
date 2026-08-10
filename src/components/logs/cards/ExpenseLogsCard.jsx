@@ -160,7 +160,7 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
             {isExpanded ? (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 9V5m0 4H5m4 0l-5-5m11 5V5m0 4h4m-4 0l5-5M9 15v4m0-4H5m4 0l5 5m11-5v4m0-4h4m-4 0l5 5" /></svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-4v4m0 0h-4m4 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" /></svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-4v4m0 0h-4m4 0l-5-5M4 16v4m0 0h4m-4 0l-5-5m11 5v-4m0 4h-4m4 0l-5 5" /></svg>
             )}
           </button>
         </div>
@@ -189,6 +189,7 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
                 <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Date & Time</th>
                 <th className="px-6 py-4 w-full bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Description</th>
                 <th className="px-6 py-4 text-right whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Amount (AED)</th>
+                {/* ✅ UPDATED STATUS HEADER: Aligned center but spanning more width for the badge */}
                 <th className="px-6 py-4 text-center whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Status</th>
                 {/* ✅ NEW: Actions Column Header */}
                 <th className="px-6 py-4 text-center whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Actions</th>
@@ -246,10 +247,22 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
                         {prefix}{Math.abs(parseFloat(trx.amount || 0)).toLocaleString(undefined, {minimumFractionDigits: 2})}
                       </td>
                       
-                      <td className="px-6 py-4 text-center whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
-                          {trx.status || 'COMPLETED'}
-                        </span>
+                      {/* ✅ UPDATED: Status Cell with Conditional Edited Badge */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
+                            {trx.status || 'COMPLETED'}
+                          </span>
+                          
+                          {trx.isEdited && (
+                            <span 
+                              className="inline-flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-wider" 
+                              title="This record has been modified"
+                            >
+                              Edited
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* ✅ NEW: Actions Cell with Edit Button */}

@@ -230,10 +230,10 @@ export default function LogsPage() {
               loading={loading} 
               isExpanded={expandedCard === 'inflows'}
               onExpand={() => handleExpandToggle('inflows')} 
+              onRefresh={fetchLogs} 
             />
           )}
 
-          {/* ✅ UPDATED: ExpenseLogsCard now has the onRefresh prop passed down */}
           {(!expandedCard || expandedCard === 'expenses') && (
             <ExpenseLogsCard 
               expensesData={expenses} 

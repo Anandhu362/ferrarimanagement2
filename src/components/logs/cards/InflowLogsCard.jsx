@@ -1,3 +1,4 @@
+// frontend/src/components/logs/cards/InflowLogsCard.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import EditInflowDateModal from '../../inflow/EditInflowDateModal';
 
@@ -226,6 +227,7 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                 {/* NEW INVOICE HEADER */}
                 <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Invoice</th>
                 <th className="px-6 py-4 text-right whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Amount (AED)</th>
+                {/* ✅ UPDATED STATUS HEADER: Aligned center but spanning more width for the badge */}
                 <th className="px-6 py-4 text-center whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Status</th>
                 {/* ACTIONS HEADER */}
                 <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80"></th>
@@ -329,10 +331,22 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                         {prefix}{parseFloat(trx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
                       </td>
                       
-                      <td className="px-6 py-4 text-center whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
-                          {trx.status || 'COMPLETED'}
-                        </span>
+                      {/* ✅ UPDATED: Status Cell with Conditional Edited Badge */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
+                            {trx.status || 'COMPLETED'}
+                          </span>
+                          
+                          {trx.isEdited && (
+                            <span 
+                              className="inline-flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-wider" 
+                              title="This record has been modified"
+                            >
+                              Edited
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* EDIT ACTION BUTTON */}
