@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../config/api'; 
 import { db } from '../../config/firebase'; 
 import { collection, doc, onSnapshot } from 'firebase/firestore'; 
+import CashFlowAnalyticsChart from '../../components/dashboard/CashFlowAnalyticsChart';
 
 export default function Dashboard() {
   const [ceoVaultBalance, setCeoVaultBalance] = useState(0);
@@ -19,6 +20,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [branchError, setBranchError] = useState(false);
   const navigate = useNavigate();
+
+  // Timeframe State Management for the Chart
+  const [chartRange, setChartRange] = useState('1M'); 
 
   // ==========================================================================
   // 1. FIRESTORE REAL-TIME LISTENERS (Sub-100ms Live Data)
@@ -76,8 +80,6 @@ export default function Dashboard() {
       }
     });
 
-    // ✅ FIX 1: Removed the old 'daily_stats' listener that was overwriting data with 0
-
     return () => {
       unsubVault();
       unsubReserve();
@@ -91,10 +93,10 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       const activeBranch = localStorage.getItem('active_branch');
-      if (!activeBranch) return; // Prevent API call if no branch is set
+      if (!activeBranch) return; 
 
       try {
-        const response = await api.get(`/api/dashboard/summary?branchId=${encodeURIComponent(activeBranch)}`);
+        const response = await api.get(`/api/dashboard/summary?branchId=${encodeURIComponent(activeBranch)}&range=${chartRange}`);
         const result = response.data;
         
         if (result.success && result.data) {
@@ -112,8 +114,6 @@ export default function Dashboard() {
           }
           
           setCashFlowTrend(result.data.cashFlowTrend || []);
-          
-          // ✅ FIX 2: Added state setters to actually update the UI with backend data
           setTodayInflow(result.data.todayInflow || 0);
           setTodayExpenses(result.data.todayExpenses || 0);
         }
@@ -125,7 +125,7 @@ export default function Dashboard() {
     };
 
     fetchAnalytics();
-  }, []);
+  }, [chartRange]); 
 
   const formatTrxDate = (dateVal) => {
     if (!dateVal) return '--:--';
@@ -314,53 +314,12 @@ export default function Dashboard() {
       {/* MIDDLE SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Main Chart Area (Historical/BigQuery) */}
-        <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col relative overflow-hidden">
-          <div className="flex justify-between items-center mb-8 relative z-10">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Cash Flow Analytics</h3>
-              <p className="text-xs text-slate-400 mt-1 font-light">Daily inflow trends</p>
-            </div>
-            <select className="bg-slate-50 border border-slate-100 text-sm font-medium text-slate-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-brand-light/20 outline-none cursor-pointer appearance-none transition-all">
-              <option>Last 7 Days</option>
-              <option>This Month</option>
-            </select>
-          </div>
-          
-          <div className="flex-1 flex items-end justify-between gap-3 pt-10 border-b border-slate-100/80 pb-2 relative z-10">
-            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-2">
-              <div className="border-t border-slate-50 w-full h-0"></div>
-              <div className="border-t border-slate-50 w-full h-0"></div>
-              <div className="border-t border-slate-50 w-full h-0"></div>
-            </div>
-            
-            {trendData.map((dayData, i) => {
-              const val = Number(dayData.dailyInflow) || 0;
-              const heightPercent = val === 0 ? 2 : (val / maxInflow) * 100; 
-              const tooltipVal = val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val;
-
-              return (
-                <div key={i} className="w-full flex justify-center group relative z-10 h-full items-end">
-                  <div 
-                    className="w-full max-w-[48px] bg-brand-light/10 rounded-t-xl group-hover:bg-brand-light/90 transition-all duration-300 cursor-pointer relative"
-                    style={{ height: `${heightPercent}%` }}
-                  >
-                    {val > 0 && (
-                      <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded-lg font-medium transition-opacity whitespace-nowrap">
-                        {tooltipVal}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-between w-full text-[11px] font-medium text-slate-400 mt-4 px-3 uppercase tracking-widest relative z-10">
-            {trendData.map((dayData, i) => (
-              <span key={i} className="flex-1 text-center">{dayData.dayOfWeek}</span>
-            ))}
-          </div>
-        </div>
+        <CashFlowAnalyticsChart 
+          trendData={trendData} 
+          maxInflow={maxInflow} 
+          chartRange={chartRange} 
+          setChartRange={setChartRange} 
+        />
 
         {/* Vault Composition - LIVE DATA */}
         <div className="bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col">
