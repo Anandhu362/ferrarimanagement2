@@ -1,5 +1,5 @@
 // frontend/src/components/petty-cash/PettyCashTopUp.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../../config/api';
 
 const PC_DENOMINATIONS = [
@@ -22,6 +22,7 @@ const VAULT_SOURCES = [
 
 export default function PettyCashTopUp({ onTopUpSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLock = useRef(false);
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' });
   
   const [isSourceOpen, setIsSourceOpen] = useState(false);
@@ -110,7 +111,8 @@ export default function PettyCashTopUp({ onTopUpSuccess }) {
   const canSubmit = isAmountMatch && !hasInsufficientStock;
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || submitLock.current) return;
+    submitLock.current = true;
     setIsSubmitting(true);
 
     try {
@@ -118,6 +120,7 @@ export default function PettyCashTopUp({ onTopUpSuccess }) {
       if (!activeBranch) {
         setModal({ isOpen: true, type: 'error', message: 'Active branch is missing. Please log in again.' });
         setIsSubmitting(false);
+        submitLock.current = false;
         return;
       }
       
@@ -128,7 +131,10 @@ export default function PettyCashTopUp({ onTopUpSuccess }) {
         }
       });
       
+      const clientTxId = `PC-TOP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
       const payload = {
+        clientTxId,
         date: formData.date,
         vaultSource: formData.source,
         amount: targetAmount,
@@ -156,6 +162,7 @@ export default function PettyCashTopUp({ onTopUpSuccess }) {
       const errorMsg = error.response?.data?.message || "Failed to process top-up. Please check vault balance.";
       setModal({ isOpen: true, type: 'error', message: errorMsg });
     } finally {
+      submitLock.current = false;
       setIsSubmitting(false);
     }
   };

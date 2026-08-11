@@ -19,6 +19,7 @@ export default function BankTransactionForm({ onSuccess }) {
   const [error, setError] = useState(null);
 
   const dropdownRef = useRef(null);
+  const submitLock = useRef(false);
 
   // Close dropdown if clicked outside
   useEffect(() => {
@@ -53,16 +54,23 @@ export default function BankTransactionForm({ onSuccess }) {
       return;
     }
 
+    if (submitLock.current) return;
+    submitLock.current = true;
     setIsSubmitting(true);
 
     try {
       const activeBranch = localStorage.getItem('active_branch');
       if (!activeBranch) {
         setError('Active branch is missing. Please log in again.');
+        submitLock.current = false;
+        setIsSubmitting(false);
         return;
       }
       
+      const clientTxId = `BNK-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
       const response = await api.post('/api/vault/transaction', {
+        clientTxId,
         branchId: activeBranch,
         type,
         date,
@@ -94,6 +102,7 @@ export default function BankTransactionForm({ onSuccess }) {
       console.error("Transaction Error:", err);
       setError(err.response?.data?.message || "An error occurred while communicating with the server.");
     } finally {
+      submitLock.current = false;
       setIsSubmitting(false);
     }
   };
