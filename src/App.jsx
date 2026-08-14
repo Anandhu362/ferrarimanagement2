@@ -33,7 +33,8 @@ import OrderHistory from './pages/orders/OrderHistory';
 import InventoryPage from './pages/inventory/InventoryPage';
 import CustomerManagement from './pages/customers/CustomerManagement'; 
 import DeliveryFormGen from './pages/orders/DeliveryFormGen'; 
-import EmployeeManagement from './pages/operations/EmployeeManagement'; // ✅ NEW: Import Employee Management
+import EmployeeManagement from './pages/operations/EmployeeManagement'; 
+import LPOGenerator from './pages/operations/LPOGenerator'; // ✅ NEW: Import LPO Generator
 
 function App() {
   const [user, setUser] = useState(null);
@@ -113,8 +114,9 @@ function App() {
             <Route path="/exchange" element={<ExchangePage />} /> 
             <Route path="/settings" element={<SettingsPage />} /> 
             
-            {/* ✅ NEW: Protected Employee Management Route */}
+            {/* ✅ NEW: Protected Employee Management & Operations Routes */}
             <Route path="/operations/employees" element={<EmployeeManagement />} />
+            <Route path="/operations/lpo-generator" element={<LPOGenerator />} /> {/* ✅ NEW: LPO Generator Route */}
           </Route>
 
           {/* Fallback route for unmatched paths */}
