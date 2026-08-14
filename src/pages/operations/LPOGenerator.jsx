@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../config/api';
 import { generateLPOPdf } from '../../utils/pdfGeneratorService'; 
-import RecentLPOLogs from '../../components/operations/RecentLPOLogs'; // ✅ IMPORTED NEW COMPONENT
+import RecentLPOLogs from '../../components/operations/RecentLPOLogs'; 
+import { fetchWithCache } from '../../utils/cacheUtils'; 
+import LPOItemTypeahead from '../../components/operations/LPOItemTypeahead'; // ✅ Imported Custom Component
 
 // --- HELPER FUNCTIONS ---
 const generateItemId = () => `ITEM-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -64,7 +66,7 @@ export default function LPOGenerator() {
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' });
   const submitLock = useRef(false);
 
-  // ✅ Trigger to refresh the logs component automatically
+  // Trigger to refresh the logs component automatically
   const [refreshLogs, setRefreshLogs] = useState(0);
 
   // Custom UI State
@@ -73,11 +75,30 @@ export default function LPOGenerator() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const timeOptions = ['MORNING', 'AFTERNOON', 'EVENING'];
 
+  // Master Inventory State for the Typeahead Search
+  const [masterInventory, setMasterInventory] = useState([]);
+
   // --- STYLES ---
   const baseInputClasses = "w-full px-4 py-3 bg-white hover:bg-slate-50 focus:bg-white border border-slate-200/80 focus:border-brand-light focus:ring-4 focus:ring-brand-light/10 rounded-xl text-slate-900 font-medium outline-none transition-all placeholder-slate-300 shadow-sm";
   const labelClasses = "block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1";
 
   // --- EFFECTS ---
+  // Load Master Inventory Data on Mount
+  useEffect(() => {
+    const loadInventory = async () => {
+      try {
+        const response = await fetchWithCache('ferrari_inventory_cache', () => api.get('/api/inventory'), 60);
+        if (response.data) {
+          setMasterInventory(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load inventory for typeahead:", error);
+      }
+    };
+    loadInventory();
+  }, []);
+
+  // Subtotal recalculation effect
   useEffect(() => {
     let sub = 0;
     items.forEach(item => {
@@ -93,19 +114,49 @@ export default function LPOGenerator() {
   // --- HANDLERS ---
   const handleVendorChange = (field, value) => setVendorData(prev => ({ ...prev, [field]: value }));
   const handleFooterChange = (field, value) => setFooterData(prev => ({ ...prev, [field]: value }));
-
   const handleItemChange = (id, field, value) => {
+    let cleanValue = value;
+    if (['kg', 'qty', 'purchasePrice'].includes(field)) {
+      if (parseFloat(value) < 0) cleanValue = '0';
+    }
+
     setItems(items.map(item => {
       if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
+        const updatedItem = { ...item, [field]: cleanValue };
         
-        const qty = parseFloat(updatedItem.qty) || 0;
-        const price = parseFloat(updatedItem.purchasePrice) || 0;
+        const qty = Math.max(0, parseFloat(updatedItem.qty) || 0);
+        const price = Math.max(0, parseFloat(updatedItem.purchasePrice) || 0);
         updatedItem.total = parseFloat((qty * price).toFixed(2));
         
         if (field === 'kg' && updatedItem.uom === 'BAGS') {
-          updatedItem.uomConversion = `1 BAG=${value} KG`;
+          updatedItem.uomConversion = `1 BAG=${cleanValue} KG`;
         }
+        return updatedItem;
+      }
+      return item;
+    }));
+  };
+
+  const handleProductSelect = (rowId, product) => {
+    // Extract numeric weight (e.g. "50KG" -> "50")
+    const kgMatch = product.weight?.match(/\d+/);
+    const kgVal = kgMatch ? kgMatch[0] : '50';
+    const priceVal = product.price ? product.price.toString() : '';
+
+    setItems(items.map(item => {
+      if (item.id === rowId) {
+        const updatedItem = { 
+          ...item, 
+          description: product.product_name,
+          kg: kgVal,
+          purchasePrice: priceVal,
+          uomConversion: `1 BAG=${kgVal} KG`
+        };
+        
+        // Instantly calculate total with new auto-filled price
+        const qty = Math.max(0, parseFloat(updatedItem.qty) || 0);
+        updatedItem.total = parseFloat((qty * Math.max(0, parseFloat(priceVal || 0))).toFixed(2));
+        
         return updatedItem;
       }
       return item;
@@ -120,10 +171,15 @@ export default function LPOGenerator() {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
+      const isTextInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+      if (!isTextInput) return;
+
       e.preventDefault();
       const container = e.target.closest('.lpo-container');
       if (container) {
-        const inputs = Array.from(container.querySelectorAll('input:not([disabled]), textarea:not([disabled]), [tabindex="0"]'));
+        const inputs = Array.from(
+          container.querySelectorAll('input[type="text"]:not([disabled]):not([readonly]), input[type="number"]:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly])')
+        );
         const currentIndex = inputs.indexOf(e.target);
         if (currentIndex > -1 && currentIndex < inputs.length - 1) {
           inputs[currentIndex + 1].focus();
@@ -203,12 +259,9 @@ export default function LPOGenerator() {
           setModal({ isOpen: true, type: 'success', message: `LPO ${generatedLPO.orderNo} was successfully saved to the database, but the browser blocked the PDF download.` });
         }
         
-        // Reset form safely
         setItems([{ id: generateItemId(), description: '', kg: '50', qty: '', uom: 'BAGS', uomConversion: '1 BAG=50 KG', purchasePrice: '', total: 0 }]);
         setTotals({ subTotal: 0, vat: 0, netAmount: 0 });
         setAmountInWords('ZERO AED ONLY');
-        
-        // ✅ Trigger logs refresh
         setRefreshLogs(prev => prev + 1);
 
       } else {
@@ -251,18 +304,16 @@ export default function LPOGenerator() {
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest mb-6">1. Logistics & Vendor Data</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            
             <div className="relative">
               <label className={labelClasses}>Delivery Date</label>
-              <div 
-                tabIndex="0"
-                onKeyDown={handleKeyDown}
+              <button 
+                type="button"
                 onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-                className={`${baseInputClasses} flex justify-between items-center cursor-pointer`}
+                className={`${baseInputClasses} flex justify-between items-center cursor-pointer text-left`}
               >
                 <span>{formatDateForDisplay(vendorData.deliveryDate)}</span>
                 <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              </div>
+              </button>
 
               {isCalendarOpen && (
                 <>
@@ -309,15 +360,14 @@ export default function LPOGenerator() {
 
             <div className="relative">
               <label className={labelClasses}>Delivery Time</label>
-              <div 
-                tabIndex="0"
-                onKeyDown={handleKeyDown}
+              <button 
+                type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className={`${baseInputClasses} flex justify-between items-center cursor-pointer`}
+                className={`${baseInputClasses} flex justify-between items-center cursor-pointer text-left`}
               >
                 <span className="capitalize">{vendorData.deliveryTime.toLowerCase()}</span>
                 <svg className={`w-4 h-4 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
-              </div>
+              </button>
               
               {isDropdownOpen && (
                 <>
@@ -383,16 +433,23 @@ export default function LPOGenerator() {
 
             {items.map((item) => (
               <div key={item.id} className="flex flex-col lg:flex-row gap-4 items-start lg:items-center bg-white p-4 lg:p-0 rounded-2xl lg:bg-transparent lg:border-none border border-slate-100 shadow-sm lg:shadow-none">
-                <div className="w-full lg:w-[30%]">
-                  <input type="text" onKeyDown={handleKeyDown} placeholder="e.g., SPECIAL PARATHA" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className={`${baseInputClasses} uppercase`} />
-                </div>
+                
+                <LPOItemTypeahead
+                  value={item.description}
+                  onChange={(val) => handleItemChange(item.id, 'description', val)}
+                  onSelect={(product) => handleProductSelect(item.id, product)}
+                  inventory={masterInventory}
+                  baseInputClasses={baseInputClasses}
+                  parentOnKeyDown={handleKeyDown}
+                />
+
                 <div className="w-full lg:w-[10%] flex gap-2">
                   <span className="lg:hidden text-xs text-slate-400 self-center w-12">KG:</span>
-                  <input type="number" onKeyDown={handleKeyDown} placeholder="50" value={item.kg} onChange={e => handleItemChange(item.id, 'kg', e.target.value)} className={baseInputClasses} />
+                  <input type="number" min="0" onKeyDown={handleKeyDown} placeholder="50" value={item.kg} onChange={e => handleItemChange(item.id, 'kg', e.target.value)} className={baseInputClasses} />
                 </div>
                 <div className="w-full lg:w-[10%] flex gap-2">
                   <span className="lg:hidden text-xs text-slate-400 self-center w-12">QTY:</span>
-                  <input type="number" onKeyDown={handleKeyDown} placeholder="0" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} className={baseInputClasses} />
+                  <input type="number" min="0" onKeyDown={handleKeyDown} placeholder="0" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} className={baseInputClasses} />
                 </div>
                 <div className="w-full lg:w-[10%] flex gap-2">
                   <span className="lg:hidden text-xs text-slate-400 self-center w-12">UOM:</span>
@@ -404,7 +461,7 @@ export default function LPOGenerator() {
                 </div>
                 <div className="w-full lg:w-[12%] flex gap-2">
                   <span className="lg:hidden text-xs text-slate-400 self-center w-12">Price:</span>
-                  <input type="number" onKeyDown={handleKeyDown} placeholder="0.00" value={item.purchasePrice} onChange={e => handleItemChange(item.id, 'purchasePrice', e.target.value)} className={baseInputClasses} />
+                  <input type="number" min="0" step="0.01" onKeyDown={handleKeyDown} placeholder="0.00" value={item.purchasePrice} onChange={e => handleItemChange(item.id, 'purchasePrice', e.target.value)} className={baseInputClasses} />
                 </div>
                 <div className="w-full lg:w-[13%] flex justify-end">
                   <span className="lg:hidden text-xs text-slate-400 self-center mr-auto">Total:</span>
@@ -472,7 +529,6 @@ export default function LPOGenerator() {
             </div>
           </div>
 
-          {/* Action Footer */}
           <div className="mt-10 flex justify-end">
             <button 
               type="button"

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../config/api';
 import InventoryTable from '../../components/inventory/InventoryTable';
 import InventoryForm from '../../components/inventory/InventoryForm';
-import { fetchWithCache, clearCache } from '../../utils/cacheUtils'; // ✅ Imported caching utilities
+import { fetchWithCache, clearCache } from '../../utils/cacheUtils'; 
 
 export default function InventoryPage() {
   // Master State Management
@@ -24,8 +24,8 @@ export default function InventoryPage() {
   const fetchInventory = async () => {
     setIsLoading(true);
     try {
-      // ✅ REPLACED direct api.get with fetchWithCache (60 min TTL)
-      const response = await fetchWithCache('ferrari_inventory_cache', '/api/inventory', 60);
+      // ✅ FIXED: Passed a callback function `() => api.get(...)` instead of a string
+      const response = await fetchWithCache('ferrari_inventory_cache', () => api.get('/api/inventory'), 60);
       setInventory(response.data || []);
     } catch (error) {
       console.error("Error fetching inventory:", error);

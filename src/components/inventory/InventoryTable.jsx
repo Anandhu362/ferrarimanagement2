@@ -1,3 +1,4 @@
+// frontend/src/components/inventory/InventoryTable.jsx
 import React from 'react';
 
 export default function InventoryTable({ data = [], isLoading, onEdit, onDelete }) {
@@ -23,6 +24,8 @@ export default function InventoryTable({ data = [], isLoading, onEdit, onDelete 
             <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[150px]">Inventory ID</th>
             <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[250px]">Product Name</th>
             <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[120px]">Weight</th>
+            {/* ✅ NEW: Added Price Column Header */}
+            <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[120px] text-right">Price (AED)</th>
             <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[120px] text-right">Stock QTY</th>
             <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[150px] text-center">Status</th>
             <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[120px] text-center">Actions</th>
@@ -32,7 +35,7 @@ export default function InventoryTable({ data = [], isLoading, onEdit, onDelete 
         <tbody className="divide-y divide-slate-100/80 text-sm">
           {data.length === 0 ? (
             <tr>
-              <td colSpan="6" className="p-16 text-center">
+              <td colSpan="7" className="p-16 text-center">
                 <div className="flex flex-col items-center justify-center">
                   <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
                     <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,6 +51,7 @@ export default function InventoryTable({ data = [], isLoading, onEdit, onDelete 
             data.map((item) => {
               // Ensure we are working with safe numbers to prevent crash if data is malformed
               const safeQty = Number(item.qty || 0);
+              const safePrice = Number(item.price || 0); // ✅ Safely parse price
               
               // Determine stock status for premium UI badges
               const isLowStock = safeQty > 0 && safeQty < 50;
@@ -62,6 +66,11 @@ export default function InventoryTable({ data = [], isLoading, onEdit, onDelete 
                     <span className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide border border-slate-200/60">
                       {item.weight || '—'}
                     </span>
+                  </td>
+
+                  {/* ✅ NEW: Render the Price Cell */}
+                  <td className="p-5 text-right font-medium text-slate-600">
+                    {safePrice.toLocaleString('en-US', {minimumFractionDigits: 2})}
                   </td>
                   
                   <td className="p-5 text-right font-semibold text-slate-900 text-base">

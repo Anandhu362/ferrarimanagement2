@@ -1,12 +1,14 @@
+// frontend/src/components/inventory/InventoryForm.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
-import { clearCache } from '../../utils/cacheUtils'; // ✅ Imported caching utility
+import { clearCache } from '../../utils/cacheUtils'; 
 
 export default function InventoryForm({ initialData, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
     productName: '',
     weight: '',
-    qty: ''
+    qty: '',
+    price: '' // ✅ Added price to state
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,10 +20,11 @@ export default function InventoryForm({ initialData, onSuccess, onCancel }) {
       setFormData({
         productName: initialData.product_name || '',
         weight: initialData.weight || '',
-        qty: initialData.qty !== undefined ? initialData.qty.toString() : ''
+        qty: initialData.qty !== undefined ? initialData.qty.toString() : '',
+        price: initialData.price !== undefined ? initialData.price.toString() : '' // ✅ Populate price
       });
     } else {
-      setFormData({ productName: '', weight: '', qty: '' });
+      setFormData({ productName: '', weight: '', qty: '', price: '' });
     }
     setLocalError(null);
   }, [initialData]);
@@ -30,7 +33,7 @@ export default function InventoryForm({ initialData, onSuccess, onCancel }) {
     e.preventDefault();
     setLocalError(null);
     
-    // Basic validation
+    // Basic validation (Price is optional, but if entered, must be valid)
     if (!formData.productName || !formData.weight || !formData.qty) {
       setLocalError('Please fill in all required fields.');
       return;
@@ -42,19 +45,19 @@ export default function InventoryForm({ initialData, onSuccess, onCancel }) {
       const payload = {
         product_name: formData.productName,
         weight: formData.weight,
-        qty: parseInt(formData.qty, 10)
+        qty: Math.max(0, parseInt(formData.qty, 10) || 0),
+        price: Math.max(0, parseFloat(formData.price) || 0)
       };
 
       if (initialData && initialData.inv_id) {
-        // Edit existing product (Only QTY is actually changed due to locked inputs)
+        // Edit existing product 
         await api.put(`/api/inventory/${initialData.inv_id}`, payload);
       } else {
         // Add new product
         await api.post('/api/inventory', payload);
       }
       
-      // ✅ CLEAR LOCAL CACHE BEFORE REFRESHING
-      // Ensures the master inventory table fetches the new data
+      // Clear cache so the table fetches the fresh data
       clearCache('ferrari_inventory_cache');
 
       // Notify parent to close modal and refresh data
@@ -85,6 +88,7 @@ export default function InventoryForm({ initialData, onSuccess, onCancel }) {
         </div>
       )}
 
+      {/* Row 1: Product Name */}
       <div>
         <div className="flex justify-between items-end mb-2 ml-1">
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest">
@@ -102,6 +106,26 @@ export default function InventoryForm({ initialData, onSuccess, onCancel }) {
         />
       </div>
 
+      {/* Row 2: Price Input */}
+      <div>
+        <div className="flex justify-between items-end mb-2 ml-1">
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+            Default Price (AED)
+          </label>
+        </div>
+        <input 
+          type="number" 
+          min="0"
+          step="0.01"
+          placeholder="0.00" 
+          value={formData.price}
+          onChange={(e) => setFormData({...formData, price: e.target.value < 0 ? '0' : e.target.value})}
+          className={inputClasses}
+          disabled={isSubmitting}
+        />
+      </div>
+
+      {/* Row 3: Weight & QTY */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">
@@ -126,7 +150,7 @@ export default function InventoryForm({ initialData, onSuccess, onCancel }) {
             min="0"
             placeholder="0" 
             value={formData.qty}
-            onChange={(e) => setFormData({...formData, qty: e.target.value})}
+            onChange={(e) => setFormData({...formData, qty: e.target.value < 0 ? '0' : e.target.value})}
             className={inputClasses}
             disabled={isSubmitting}
             required
