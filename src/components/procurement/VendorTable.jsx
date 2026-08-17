@@ -87,11 +87,9 @@ export default function VendorTable({ data, isLoading, onEdit, onDelete }) {
               {/* Actions Column */}
               <td className="py-4 px-6">
                 {/* 
-                  The opacity-0 to group-hover:opacity-100 ensures the icons 
-                  only show when the user hovers over the specific table row, 
-                  keeping the general UI clean and uncluttered.
+                  Removed opacity-0 and group-hover:opacity-100 to make icons always visible.
                 */}
-                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <div className="flex items-center justify-end gap-2 transition-opacity duration-200">
                   <button 
                     onClick={() => onEdit(vendor)} 
                     className="p-1.5 text-slate-400 hover:text-brand-dark hover:bg-slate-100 rounded-lg transition-all shadow-sm hover:shadow" 
