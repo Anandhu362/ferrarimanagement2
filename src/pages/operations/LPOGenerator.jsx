@@ -4,7 +4,7 @@ import api from '../../config/api';
 import { generateLPOPdf } from '../../utils/pdfGeneratorService'; 
 import RecentLPOLogs from '../../components/operations/RecentLPOLogs'; 
 import { fetchWithCache } from '../../utils/cacheUtils'; 
-import LPOItemTypeahead from '../../components/operations/LPOItemTypeahead'; // ✅ Imported Custom Component
+import LPOItemTypeahead from '../../components/operations/LPOItemTypeahead'; 
 
 // --- HELPER FUNCTIONS ---
 const generateItemId = () => `ITEM-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -78,9 +78,33 @@ export default function LPOGenerator() {
   // Master Inventory State for the Typeahead Search
   const [masterInventory, setMasterInventory] = useState([]);
 
+  // ✅ NEW: Saved Vendors State for Typeahead Auto-fill
+  const [savedVendors, setSavedVendors] = useState([]);
+  const [filteredVendors, setFilteredVendors] = useState([]);
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
+  const [vendorActiveIndex, setVendorActiveIndex] = useState(-1);
+  
+  const payeeRef = useRef(null);
+  const vendorListRef = useRef(null);
+
   // --- STYLES ---
   const baseInputClasses = "w-full px-4 py-3 bg-white hover:bg-slate-50 focus:bg-white border border-slate-200/80 focus:border-brand-light focus:ring-4 focus:ring-brand-light/10 rounded-xl text-slate-900 font-medium outline-none transition-all placeholder-slate-300 shadow-sm";
   const labelClasses = "block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1";
+
+  // Reset vendor active index when filtered list updates
+  useEffect(() => {
+    setVendorActiveIndex(-1);
+  }, [filteredVendors]);
+
+  // Scroll active vendor item into view
+  useEffect(() => {
+    if (showVendorDropdown && vendorActiveIndex >= 0 && vendorListRef.current) {
+      const activeEl = vendorListRef.current.children[vendorActiveIndex];
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [vendorActiveIndex, showVendorDropdown]);
 
   // --- EFFECTS ---
   // Load Master Inventory Data on Mount
@@ -96,6 +120,21 @@ export default function LPOGenerator() {
       }
     };
     loadInventory();
+  }, []);
+
+  // ✅ NEW: Load Saved Vendors on Mount
+  useEffect(() => {
+    const loadVendors = async () => {
+      try {
+        const response = await api.get('/api/vendors');
+        if (response.data && response.data.data) {
+          setSavedVendors(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to load vendors:", error);
+      }
+    };
+    loadVendors();
   }, []);
 
   // Subtotal recalculation effect
@@ -114,6 +153,40 @@ export default function LPOGenerator() {
   // --- HANDLERS ---
   const handleVendorChange = (field, value) => setVendorData(prev => ({ ...prev, [field]: value }));
   const handleFooterChange = (field, value) => setFooterData(prev => ({ ...prev, [field]: value }));
+  
+  // ✅ NEW: Vendor Search & Auto-Fill Handlers
+  const handleVendorSearch = (e) => {
+    const value = e.target.value;
+    handleVendorChange('vendorName', value);
+
+    if (value.trim().length > 0) {
+      const upperValue = value.toUpperCase();
+      const matches = savedVendors.filter(v => 
+        v.vendorName?.toUpperCase().includes(upperValue) || 
+        v.vendor_id?.toUpperCase().includes(upperValue)
+      );
+      setFilteredVendors(matches);
+      setShowVendorDropdown(true);
+    } else {
+      setShowVendorDropdown(false);
+    }
+  };
+
+  const handleVendorSelect = (vendor) => {
+    handleVendorChange('vendorName', vendor.vendorName);
+    handleVendorChange('payeeDetails', vendor.payeeDetails);
+    setShowVendorDropdown(false);
+    setVendorActiveIndex(-1);
+
+    // Auto-shift focus to Payee Details textarea
+    setTimeout(() => {
+      if (payeeRef.current) {
+        payeeRef.current.focus();
+        payeeRef.current.select();
+      }
+    }, 50);
+  };
+
   const handleItemChange = (id, field, value) => {
     let cleanValue = value;
     if (['kg', 'qty', 'purchasePrice'].includes(field)) {
@@ -138,7 +211,6 @@ export default function LPOGenerator() {
   };
 
   const handleProductSelect = (rowId, product) => {
-    // Extract numeric weight (e.g. "50KG" -> "50")
     const kgMatch = product.weight?.match(/\d+/);
     const kgVal = kgMatch ? kgMatch[0] : '50';
     const priceVal = product.price ? product.price.toString() : '';
@@ -153,7 +225,6 @@ export default function LPOGenerator() {
           uomConversion: `1 BAG=${kgVal} KG`
         };
         
-        // Instantly calculate total with new auto-filled price
         const qty = Math.max(0, parseFloat(updatedItem.qty) || 0);
         updatedItem.total = parseFloat((qty * Math.max(0, parseFloat(priceVal || 0))).toFixed(2));
         
@@ -167,6 +238,31 @@ export default function LPOGenerator() {
   
   const removeItemRow = (id) => {
     if (items.length > 1) setItems(items.filter(item => item.id !== id));
+  };
+
+  const handleVendorKeyDown = (e) => {
+    if (showVendorDropdown && filteredVendors.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setVendorActiveIndex(prev => (prev < filteredVendors.length - 1 ? prev + 1 : prev));
+        return;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setVendorActiveIndex(prev => (prev > 0 ? prev - 1 : 0));
+        return;
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (vendorActiveIndex >= 0 && filteredVendors[vendorActiveIndex]) {
+          e.preventDefault();
+          handleVendorSelect(filteredVendors[vendorActiveIndex]);
+          return;
+        }
+      } else if (e.key === 'Escape') {
+        setShowVendorDropdown(false);
+        return;
+      }
+    }
+
+    handleKeyDown(e);
   };
 
   const handleKeyDown = (e) => {
@@ -183,6 +279,17 @@ export default function LPOGenerator() {
         const currentIndex = inputs.indexOf(e.target);
         if (currentIndex > -1 && currentIndex < inputs.length - 1) {
           inputs[currentIndex + 1].focus();
+        } else if (currentIndex === inputs.length - 1) {
+          // Pressing Enter on the last input auto-adds a new row and focuses its item search input
+          addItemRow();
+          setTimeout(() => {
+            const updatedInputs = Array.from(
+              container.querySelectorAll('input[type="text"]:not([disabled]):not([readonly]), input[type="number"]:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly])')
+            );
+            if (updatedInputs.length > inputs.length) {
+              updatedInputs[currentIndex + 1].focus();
+            }
+          }, 100);
         }
       }
     }
@@ -394,13 +501,59 @@ export default function LPOGenerator() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
+            
+            {/* ✅ UPDATED: Vendor Name with Full Tally-Style Typeahead & Keyboard Navigation */}
+            <div className="relative z-[60]">
               <label className={labelClasses}>Vendor Name & Address</label>
-              <textarea rows="3" onKeyDown={handleKeyDown} value={vendorData.vendorName} onChange={e => handleVendorChange('vendorName', e.target.value)} className={`${baseInputClasses} resize-none uppercase`} placeholder="AL GHURAIR FOODS LLC&#10;DUBAI, U.A.E" />
+              <textarea 
+                rows="3" 
+                onKeyDown={handleVendorKeyDown} 
+                value={vendorData.vendorName} 
+                onChange={handleVendorSearch}
+                onFocus={() => {
+                  if (vendorData.vendorName && filteredVendors.length > 0) setShowVendorDropdown(true);
+                }}
+                onBlur={() => setTimeout(() => setShowVendorDropdown(false), 200)}
+                className={`${baseInputClasses} resize-none uppercase`} 
+                placeholder="AL GHURAIR FOODS LLC&#10;DUBAI, U.A.E" 
+              />
+              
+              {showVendorDropdown && filteredVendors.length > 0 && (
+                <div 
+                  ref={vendorListRef}
+                  className="absolute top-[calc(100%+4px)] left-0 w-full bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-100 z-[100] max-h-56 overflow-y-auto animate-in fade-in zoom-in-95"
+                >
+                  {filteredVendors.map((vendor, index) => (
+                    <div 
+                      key={vendor.vendor_id}
+                      onClick={() => handleVendorSelect(vendor)}
+                      className={`px-4 py-3 cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${
+                        vendorActiveIndex === index 
+                          ? 'bg-brand-light/10 border-l-4 border-l-brand-dark' 
+                          : 'hover:bg-slate-50 border-l-4 border-transparent'
+                      }`}
+                    >
+                      <div className={`text-sm font-bold ${vendorActiveIndex === index ? 'text-brand-dark' : 'text-slate-800'}`}>
+                        {vendor.vendorName}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-0.5 truncate">{vendor.payeeDetails}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
             <div>
               <label className={labelClasses}>Payee Details</label>
-              <textarea rows="3" onKeyDown={handleKeyDown} value={vendorData.payeeDetails} onChange={e => handleVendorChange('payeeDetails', e.target.value)} className={`${baseInputClasses} resize-none uppercase`} placeholder="AL GHURAIR FOODS LLC&#10;DUBAI, U.A.E" />
+              <textarea 
+                ref={payeeRef}
+                rows="3" 
+                onKeyDown={handleKeyDown} 
+                value={vendorData.payeeDetails} 
+                onChange={e => handleVendorChange('payeeDetails', e.target.value)} 
+                className={`${baseInputClasses} resize-none uppercase`} 
+                placeholder="AL GHURAIR FOODS LLC&#10;DUBAI, U.A.E" 
+              />
             </div>
             <div>
               <label className={labelClasses}>Purchase Organization</label>
@@ -546,7 +699,6 @@ export default function LPOGenerator() {
         </div>
       </div>
 
-      {/* ✅ ADDED: The new Recent LPO Logs Component */}
       <RecentLPOLogs refreshTrigger={refreshLogs} />
 
       {/* Success/Error Modal */}

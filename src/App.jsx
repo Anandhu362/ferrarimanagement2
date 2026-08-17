@@ -35,6 +35,7 @@ import CustomerManagement from './pages/customers/CustomerManagement';
 import DeliveryFormGen from './pages/orders/DeliveryFormGen'; 
 import EmployeeManagement from './pages/operations/EmployeeManagement'; 
 import LPOGenerator from './pages/operations/LPOGenerator'; // ✅ NEW: Import LPO Generator
+import VendorsPage from './pages/procurement/VendorsPage'; // ✅ NEW: Import Vendors Page
 
 function App() {
   const [user, setUser] = useState(null);
@@ -117,6 +118,7 @@ function App() {
             {/* ✅ NEW: Protected Employee Management & Operations Routes */}
             <Route path="/operations/employees" element={<EmployeeManagement />} />
             <Route path="/operations/lpo-generator" element={<LPOGenerator />} /> {/* ✅ NEW: LPO Generator Route */}
+            <Route path="/procurement/vendors" element={<VendorsPage />} /> {/* ✅ NEW: Vendors Route */}
           </Route>
 
           {/* Fallback route for unmatched paths */}

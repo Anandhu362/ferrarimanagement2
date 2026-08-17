@@ -43,6 +43,25 @@ export default function LPOItemTypeahead({
     }
   }, [activeIndex, isOpen]);
 
+  const handleItemSelect = (product) => {
+    onSelect(product);
+    setIsOpen(false);
+    
+    // Auto-advance focus to the KG/QTY field in the same row
+    setTimeout(() => {
+      if (containerRef.current) {
+        const parentRow = containerRef.current.closest('.flex');
+        if (parentRow) {
+          const numberInputs = parentRow.querySelectorAll('input[type="number"]');
+          if (numberInputs && numberInputs.length > 0) {
+            numberInputs[0].focus();
+            numberInputs[0].select();
+          }
+        }
+      }
+    }, 50);
+  };
+
   const handleKeyDown = (e) => {
     if (isOpen && filteredInventory.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -53,11 +72,10 @@ export default function LPOItemTypeahead({
         e.preventDefault();
         setActiveIndex((prev) => (prev > 0 ? prev - 1 : 0));
         return;
-      } else if (e.key === 'Enter') {
-        if (activeIndex >= 0) {
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (activeIndex >= 0 && filteredInventory[activeIndex]) {
           e.preventDefault();
-          onSelect(filteredInventory[activeIndex]);
-          setIsOpen(false);
+          handleItemSelect(filteredInventory[activeIndex]);
           return;
         }
       } else if (e.key === 'Escape') {
@@ -95,8 +113,7 @@ export default function LPOItemTypeahead({
             <div
               key={product.inv_id}
               onClick={() => {
-                onSelect(product);
-                setIsOpen(false);
+                handleItemSelect(product);
               }}
               className={`p-4 cursor-pointer border-b border-slate-50 last:border-0 transition-colors group flex justify-between items-center gap-4 ${
                 activeIndex === index ? 'bg-brand-light/10 border-l-4 border-l-brand-dark' : 'hover:bg-brand-light/5 border-l-4 border-transparent'
