@@ -411,7 +411,7 @@ export default function LPOGenerator() {
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest mb-6">1. Logistics & Vendor Data</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="relative">
+            <div className={`relative ${isCalendarOpen ? 'z-[100]' : 'z-10'}`}>
               <label className={labelClasses}>Delivery Date</label>
               <button 
                 type="button"
@@ -424,8 +424,8 @@ export default function LPOGenerator() {
 
               {isCalendarOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsCalendarOpen(false)}></div>
-                  <div className="absolute top-[calc(100%+8px)] left-0 p-5 bg-white rounded-[1.5rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-100/80 z-50 w-[280px] animate-in slide-in-from-top-2">
+                  <div className="fixed inset-0 z-[110]" onClick={() => setIsCalendarOpen(false)}></div>
+                  <div className="absolute top-[calc(100%+8px)] left-0 p-5 bg-white rounded-[1.5rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-100/80 z-[120] w-[280px] animate-in slide-in-from-top-2">
                     <div className="flex justify-between items-center mb-5">
                       <button type="button" onClick={(e) => { e.stopPropagation(); setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1)); }} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
@@ -465,7 +465,7 @@ export default function LPOGenerator() {
               )}
             </div>
 
-            <div className="relative">
+            <div className={`relative ${isDropdownOpen ? 'z-[100]' : 'z-10'}`}>
               <label className={labelClasses}>Delivery Time</label>
               <button 
                 type="button"
@@ -478,8 +478,8 @@ export default function LPOGenerator() {
               
               {isDropdownOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)}></div>
-                  <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-white rounded-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] border border-slate-100/80 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  <div className="fixed inset-0 z-[110]" onClick={() => setIsDropdownOpen(false)}></div>
+                  <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-white rounded-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] border border-slate-100/80 z-[120] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                     {timeOptions.map((option) => (
                       <div 
                         key={option} 
@@ -502,8 +502,8 @@ export default function LPOGenerator() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* ✅ UPDATED: Vendor Name with Full Tally-Style Typeahead & Keyboard Navigation */}
-            <div className="relative z-[60]">
+            {/* ✅ UPDATED: Dynamic stacking context for Vendor Name typeahead */}
+            <div className={`relative ${showVendorDropdown ? 'z-[100]' : 'z-10'}`}>
               <label className={labelClasses}>Vendor Name & Address</label>
               <textarea 
                 rows="3" 
@@ -521,7 +521,7 @@ export default function LPOGenerator() {
               {showVendorDropdown && filteredVendors.length > 0 && (
                 <div 
                   ref={vendorListRef}
-                  className="absolute top-[calc(100%+4px)] left-0 w-full bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-100 z-[100] max-h-56 overflow-y-auto animate-in fade-in zoom-in-95"
+                  className="absolute top-[calc(100%+4px)] left-0 w-full bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-100 z-[120] max-h-56 overflow-y-auto animate-in fade-in zoom-in-95"
                 >
                   {filteredVendors.map((vendor, index) => (
                     <div 

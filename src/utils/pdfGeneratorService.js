@@ -217,7 +217,7 @@ export const generateLPOPdf = async (lpoData) => {
       'CURRENCY'
     ]],
     body: [[
-      safeUpper(lpoData.orderNo || 'ABULPO-NO 1152C&F'),
+      safeUpper(lpoData.orderNo || ''),
       safeUpper(orderDateFormatted),
       safeUpper(deliveryDateFormatted),
       safeUpper(lpoData.deliveryTime || 'EVENING'),

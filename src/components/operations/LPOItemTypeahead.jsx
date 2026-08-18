@@ -90,7 +90,7 @@ export default function LPOItemTypeahead({
   };
 
   return (
-    <div className="w-full lg:w-[30%] relative product-search-container" ref={containerRef}>
+    <div className={`w-full lg:w-[30%] relative product-search-container ${isOpen ? 'z-[100]' : 'z-10'}`} ref={containerRef}>
       <input
         type="text"
         placeholder="e.g., SPECIAL PARATHA"
@@ -107,7 +107,7 @@ export default function LPOItemTypeahead({
       {isOpen && inventory.length > 0 && (
         <div 
           ref={listRef}
-          className="absolute top-[calc(100%+4px)] left-0 w-full max-h-64 overflow-y-auto bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-100 z-[100] animate-in fade-in zoom-in-95 duration-200"
+          className="absolute top-[calc(100%+4px)] left-0 w-full max-h-64 overflow-y-auto bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-100 z-[120] animate-in fade-in zoom-in-95 duration-200"
         >
           {filteredInventory.map((product, index) => (
             <div
