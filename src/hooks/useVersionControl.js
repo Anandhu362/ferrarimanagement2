@@ -4,26 +4,44 @@ import { rtdb } from '../config/firebase';
 import API from '../config/api';
 
 const CURRENT_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
+const ACKNOWLEDGED_KEY = 'app_acknowledged_version';
 
 export function useVersionControl() {
     const [updateAvailable, setUpdateAvailable] = useState(false);
     const [versionData, setVersionData] = useState(null);
 
+    const applyUpdate = () => {
+        if (versionData?.latestVersion) {
+            localStorage.setItem(ACKNOWLEDGED_KEY, versionData.latestVersion);
+        }
+        window.location.reload();
+    };
+
     useEffect(() => {
+        const checkVersionState = (data) => {
+            if (!data || !data.latestVersion) return;
+
+            const ackVersion = localStorage.getItem(ACKNOWLEDGED_KEY);
+            const isNewerThanApp = data.latestVersion !== CURRENT_VERSION;
+            const isNotYetAcknowledged = data.latestVersion !== ackVersion;
+
+            console.log(`[Version Control] RTDB: v${data.latestVersion} | App: v${CURRENT_VERSION} | Ack: v${ackVersion || 'none'}`);
+
+            if (isNewerThanApp && isNotYetAcknowledged) {
+                setUpdateAvailable(true);
+                setVersionData(data);
+            } else {
+                setUpdateAvailable(false);
+            }
+        };
+
         // 1. Listen to Firebase Realtime Database node in real-time
         if (rtdb) {
             try {
                 const versionRef = ref(rtdb, 'system_metadata/version');
                 const unsubscribe = onValue(versionRef, (snapshot) => {
                     if (snapshot.exists()) {
-                        const data = snapshot.val();
-                        console.log(`[Version Control] RTDB Received Version: v${data.latestVersion} | App Running: v${CURRENT_VERSION}`);
-                        if (data.latestVersion && data.latestVersion !== CURRENT_VERSION) {
-                            setUpdateAvailable(true);
-                            setVersionData(data);
-                        } else {
-                            setUpdateAvailable(false);
-                        }
+                        checkVersionState(snapshot.val());
                     }
                 }, (error) => {
                     console.warn('[Version Control] RTDB Listener fallback to HTTP:', error.message);
@@ -39,10 +57,8 @@ export function useVersionControl() {
         const checkVersionHTTP = async () => {
             try {
                 const res = await API.get('/api/system/version');
-                if (res.data?.success && res.data.data?.latestVersion !== CURRENT_VERSION) {
-                    console.log(`[Version Control HTTP] Received Version: v${res.data.data.latestVersion} | App Running: v${CURRENT_VERSION}`);
-                    setUpdateAvailable(true);
-                    setVersionData(res.data.data);
+                if (res.data?.success && res.data.data) {
+                    checkVersionState(res.data.data);
                 }
             } catch (e) {
                 // Silently ignore HTTP check errors
@@ -93,7 +109,7 @@ export function useVersionControl() {
 
                 if (!isTyping) {
                     console.log('[Version Control] User idle for 5+ mins with no active input typing. Auto-applying update...');
-                    window.location.reload();
+                    applyUpdate();
                 }
             }
         }, 10000); // Check every 10 seconds
@@ -102,12 +118,12 @@ export function useVersionControl() {
             activityEvents.forEach(evt => window.removeEventListener(evt, resetTimer));
             clearInterval(idleCheckInterval);
         };
-    }, [updateAvailable]);
+    }, [updateAvailable, versionData]);
 
     return { 
         updateAvailable, 
         versionData, 
         currentVersion: CURRENT_VERSION,
-        applyUpdate: () => window.location.reload()
+        applyUpdate
     };
 }
