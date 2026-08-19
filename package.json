@@ -1,7 +1,7 @@
 {
   "name": "ferrari-foods-management",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.4.0",
   "description": "Enterprise Cash Operations and Vault Management System for Ferrari Foods.",
   "author": "Anandhu V S",
   "type": "module",
