@@ -5,12 +5,14 @@ import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence } f
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase'; // Added db import
 import { Preferences } from '@capacitor/preferences'; // Imported Capacitor Preferences
+import AgentForgotPasswordModal from '../../components/agent/AgentForgotPasswordModal';
 
 export default function AgentLogin() {
   const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -160,9 +162,13 @@ export default function AgentLogin() {
 
           {/* Footer Links */}
           <div className="mt-8 flex flex-col items-center gap-4 text-sm">
-            <Link to="/forgot-password" className="font-semibold text-brand-dark hover:text-brand-light transition-colors">
+            <button 
+              type="button"
+              onClick={() => setIsForgotModalOpen(true)} 
+              className="font-semibold text-brand-dark hover:text-brand-light transition-colors focus:outline-none"
+            >
               Forgot your password?
-            </Link>
+            </button>
             <div className="w-full border-t border-slate-100"></div>
             <p className="text-slate-500">
               New agent?{' '}
@@ -174,6 +180,13 @@ export default function AgentLogin() {
 
         </div>
       </div>
+
+      {/* Agent Forgot Password Modal */}
+      <AgentForgotPasswordModal 
+        isOpen={isForgotModalOpen} 
+        onClose={() => setIsForgotModalOpen(false)} 
+        onSuccessMobile={(mob) => setMobileNumber(mob)}
+      />
     </div>
   );
 }

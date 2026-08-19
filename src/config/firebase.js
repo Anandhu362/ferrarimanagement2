@@ -2,6 +2,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -9,10 +10,11 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://ferrari-foods-cash-management-default-rtdb.europe-west1.firebasedatabase.app'
 };
 
-let app, auth, db;
+let app, auth, db, rtdb;
 
 try {
   // Check if the API key is completely missing
@@ -28,6 +30,7 @@ try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+  rtdb = getDatabase(app);
   
   console.log("✅ Firebase initialized successfully.");
 } catch (error) {
@@ -35,4 +38,4 @@ try {
   console.error("The app will still load, but Login/Database features will not work until the .env keys are fixed.");
 }
 
-export { auth, db };
+export { auth, db, rtdb };

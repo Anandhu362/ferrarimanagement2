@@ -37,9 +37,14 @@ import EmployeeManagement from './pages/operations/EmployeeManagement';
 import LPOGenerator from './pages/operations/LPOGenerator'; // ✅ NEW: Import LPO Generator
 import VendorsPage from './pages/procurement/VendorsPage'; // ✅ NEW: Import Vendors Page
 
+// ✅ NEW: Import Version Control Hook & Toast Component
+import { useVersionControl } from './hooks/useVersionControl';
+import UpdateNotificationToast from './components/UpdateNotificationToast';
+
 function App() {
   const [user, setUser] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const { updateAvailable, versionData, applyUpdate } = useVersionControl();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -60,6 +65,9 @@ function App() {
   return (
     // ✅ NEW: Wrap the entire application routing in the SyncProvider
     <SyncProvider>
+      {updateAvailable && versionData && (
+        <UpdateNotificationToast versionData={versionData} onUpdate={applyUpdate} />
+      )}
       <BrowserRouter>
         <Routes>
           {/* ========================================================
