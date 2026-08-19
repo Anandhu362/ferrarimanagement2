@@ -17,9 +17,12 @@ export function useVersionControl() {
                 const unsubscribe = onValue(versionRef, (snapshot) => {
                     if (snapshot.exists()) {
                         const data = snapshot.val();
+                        console.log(`[Version Control] RTDB Received Version: v${data.latestVersion} | App Running: v${CURRENT_VERSION}`);
                         if (data.latestVersion && data.latestVersion !== CURRENT_VERSION) {
                             setUpdateAvailable(true);
                             setVersionData(data);
+                        } else {
+                            setUpdateAvailable(false);
                         }
                     }
                 }, (error) => {
@@ -35,8 +38,9 @@ export function useVersionControl() {
         // 2. HTTP Polling Fallback (Runs if RTDB is unavailable or every 15 mins)
         const checkVersionHTTP = async () => {
             try {
-                const res = await API.get('/system/version');
+                const res = await API.get('/api/system/version');
                 if (res.data?.success && res.data.data?.latestVersion !== CURRENT_VERSION) {
+                    console.log(`[Version Control HTTP] Received Version: v${res.data.data.latestVersion} | App Running: v${CURRENT_VERSION}`);
                     setUpdateAvailable(true);
                     setVersionData(res.data.data);
                 }
