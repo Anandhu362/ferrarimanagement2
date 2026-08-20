@@ -22,7 +22,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   // Timeframe State Management for the Chart
-  const [chartRange, setChartRange] = useState('1M'); 
+  const [chartRange, setChartRange] = useState('7D'); 
 
   // ==========================================================================
   // 1. FIRESTORE REAL-TIME LISTENERS (Sub-100ms Live Data)
@@ -369,7 +369,6 @@ export default function Dashboard() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 text-slate-400 text-[11px] font-semibold uppercase tracking-widest">
-                <th className="px-8 py-4 whitespace-nowrap">Transaction ID</th>
                 <th className="px-8 py-4 whitespace-nowrap">Time</th>
                 <th className="px-8 py-4 w-full">Description</th>
                 <th className="px-8 py-4 text-right whitespace-nowrap">Amount (AED)</th>
@@ -383,7 +382,6 @@ export default function Dashboard() {
                 
                 return (
                   <tr key={index} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-5 text-slate-900 font-medium whitespace-nowrap">{trx.id}</td>
                     <td className="px-8 py-5 text-slate-400 whitespace-nowrap font-light">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
                     
                     <td className="px-8 py-5">
