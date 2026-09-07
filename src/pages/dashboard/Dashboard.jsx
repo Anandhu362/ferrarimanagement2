@@ -5,6 +5,7 @@ import api from '../../config/api';
 import { db } from '../../config/firebase'; 
 import { collection, doc, onSnapshot } from 'firebase/firestore'; 
 import CashFlowAnalyticsChart from '../../components/dashboard/CashFlowAnalyticsChart';
+import AgentPerformanceCard from '../../components/dashboard/AgentPerformanceCard';
 
 export default function Dashboard() {
   const [ceoVaultBalance, setCeoVaultBalance] = useState(0);
@@ -16,6 +17,7 @@ export default function Dashboard() {
   
   const [recentActivity, setRecentActivity] = useState([]);
   const [cashFlowTrend, setCashFlowTrend] = useState([]);
+  const [agentPerformance, setAgentPerformance] = useState(null);
   
   const [loading, setLoading] = useState(true);
   const [branchError, setBranchError] = useState(false);
@@ -116,6 +118,7 @@ export default function Dashboard() {
           setCashFlowTrend(result.data.cashFlowTrend || []);
           setTodayInflow(result.data.todayInflow || 0);
           setTodayExpenses(result.data.todayExpenses || 0);
+          setAgentPerformance(result.data.agentPerformance || null);
         }
       } catch (error) {
         console.error("Error fetching dashboard analytical data:", error);
@@ -311,8 +314,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* MIDDLE SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* MIDDLE SECTION: 12-Column Balanced Fintech Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         
         <CashFlowAnalyticsChart 
           trendData={trendData} 
@@ -321,19 +324,21 @@ export default function Dashboard() {
           setChartRange={setChartRange} 
         />
 
+        <AgentPerformanceCard agentPerformance={agentPerformance} />
+
         {/* Vault Composition - LIVE DATA */}
-        <div className="bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col">
-          <div className="mb-8">
+        <div className="lg:col-span-3 bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col justify-between">
+          <div className="mb-6">
             <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Vault Composition</h3>
             <p className="text-xs text-slate-400 mt-1 font-light">Current denomination breakdown</p>
           </div>
           
-          <div className="flex-1 flex flex-col justify-center space-y-5">
+          <div className="flex-1 flex flex-col justify-center space-y-4">
             {liveComposition.map((item, index) => (
-              <div key={index} className="flex flex-col gap-2 group">
+              <div key={index} className="flex flex-col gap-1.5 group">
                 <div className="flex justify-between items-end">
-                  <span className="text-sm font-medium text-slate-700">{item.label}</span>
-                  <span className="text-xs font-semibold text-slate-900">
+                  <span className="text-xs font-semibold text-slate-700">{item.label}</span>
+                  <span className="text-xs font-bold text-slate-900">
                     AED {item.value.toLocaleString(undefined, {minimumFractionDigits: 2})}
                   </span>
                 </div>

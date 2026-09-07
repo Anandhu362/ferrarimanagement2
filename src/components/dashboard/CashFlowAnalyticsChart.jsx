@@ -17,7 +17,7 @@ export default function CashFlowAnalyticsChart({ trendData, maxInflow, chartRang
   }, []);
 
   return (
-    <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col relative overflow-hidden">
+    <div className="lg:col-span-6 bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col justify-between relative overflow-hidden">
       
       {/* Header & Custom Dropdown */}
       <div className="flex justify-between items-center mb-8 relative z-20">
