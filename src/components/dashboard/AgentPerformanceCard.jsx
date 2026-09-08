@@ -1,11 +1,22 @@
 // frontend/src/components/dashboard/AgentPerformanceCard.jsx
 import React from 'react';
 
+const RANK_PALETTE = [
+  'bg-slate-900',
+  'bg-emerald-500',
+  'bg-indigo-500',
+  'bg-amber-500',
+  'bg-rose-500',
+  'bg-cyan-500',
+  'bg-purple-500',
+  'bg-orange-500'
+];
+
 export default function AgentPerformanceCard({ agentPerformance }) {
   const rankings = agentPerformance?.rankings || [];
   const totalCollections = agentPerformance?.totalCollections || 0;
 
-  // Format large currency numbers gracefully (e.g., 3.90M AED)
+  // Format large currency numbers gracefully (e.g., 3.90M AED or 124.8K AED)
   const formatTotalCompact = (val) => {
     if (val >= 1000000) {
       return (val / 1000000).toFixed(2) + 'M AED';
@@ -16,23 +27,11 @@ export default function AgentPerformanceCard({ agentPerformance }) {
     return val.toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' AED';
   };
 
-  // Color mapping fallback
-  const getBarColor = (name, index) => {
+  // Dynamic ranking color generator
+  const getDynamicColor = (name, index) => {
     const clean = String(name || '').toLowerCase();
     if (clean.includes('desk') || clean.includes('direct')) return 'bg-slate-900';
-    if (clean.includes('shuhaib')) return 'bg-emerald-500';
-    if (clean.includes('thavab')) return 'bg-purple-500';
-    if (clean.includes('basheer')) return 'bg-amber-500';
-
-    const fallbackColors = [
-      'bg-slate-900',
-      'bg-emerald-500',
-      'bg-purple-500',
-      'bg-amber-500',
-      'bg-blue-500',
-      'bg-rose-500'
-    ];
-    return fallbackColors[index % fallbackColors.length];
+    return RANK_PALETTE[(index + 1) % RANK_PALETTE.length];
   };
 
   const getRoleIcon = (name) => {
@@ -82,7 +81,7 @@ export default function AgentPerformanceCard({ agentPerformance }) {
           </div>
         ) : (
           rankings.slice(0, 5).map((item, index) => {
-            const barColor = item.color || getBarColor(item.name, index);
+            const barColor = getDynamicColor(item.name, index);
             const percentage = item.percentage || 0;
 
             return (
