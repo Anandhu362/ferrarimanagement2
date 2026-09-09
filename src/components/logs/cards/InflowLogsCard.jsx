@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import EditInflowDateModal from '../../inflow/EditInflowDateModal';
 
-export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExpand }) {
+export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasMore, onLoadMore, isExpanded, onExpand, onRefresh }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
@@ -13,6 +13,14 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false); 
+
+  // Handle infinite scroll on bottom threshold
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 100 && hasMore && !loadingMore && onLoadMore) {
+      onLoadMore();
+    }
+  }; 
 
   // --- NEW: Helper to extract invoice from description ---
   const extractInvoiceNumber = (trx) => {
@@ -208,6 +216,7 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
         tabIndex={0} 
         onKeyDown={handleKeyDown}
         onMouseMove={handleMouseMove}
+        onScroll={handleScroll}
         className="overflow-auto grow focus:outline-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative"
       >
         {loading ? (
@@ -246,124 +255,137 @@ export default function InflowLogsCard({ inflowsData, loading, isExpanded, onExp
                   </td>
                 </tr>
               ) : (
-                filteredData.map((trx, index) => {
-                  const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
-                  const { dot, text, prefix } = getTrxColors(trx.type);
-                  const isSelected = index === selectedIndex;
-                  
-                  // UPDATED: Grab invoice string using the new helper
-                  const invoiceStr = extractInvoiceNumber(trx);
-                  
-                  return (
-                    <tr 
-                      key={index} 
-                      onMouseEnter={() => {
-                        if (!isKeyboardNav.current) {
-                          setSelectedIndex(index);
-                        }
-                      }}
-                      className={`transition-colors group cursor-pointer ${
-                        isSelected ? 'bg-emerald-100/60' : 'hover:bg-emerald-50/30'
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
-                          <div className="flex flex-col">
-                            <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
-                              {extractCompanyName(trx.description)}
+                <>
+                  {filteredData.map((trx, index) => {
+                    const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
+                    const { dot, text, prefix } = getTrxColors(trx.type);
+                    const isSelected = index === selectedIndex;
+                    
+                    // UPDATED: Grab invoice string using the new helper
+                    const invoiceStr = extractInvoiceNumber(trx);
+                    
+                    return (
+                      <tr 
+                        key={index} 
+                        onMouseEnter={() => {
+                          if (!isKeyboardNav.current) {
+                            setSelectedIndex(index);
+                          }
+                        }}
+                        className={`transition-colors group cursor-pointer ${
+                          isSelected ? 'bg-emerald-100/60' : 'hover:bg-emerald-50/30'
+                        }`}
+                      >
+                        <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
+                            <div className="flex flex-col">
+                              <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
+                                {extractCompanyName(trx.description)}
+                              </span>
+                              
+                              {billedVal > 0 && (
+                                <span className="text-[10px] text-slate-500 mt-0.5 tracking-wide group-hover:text-slate-700 transition-colors">
+                                  Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                </span>
+                              )}
+
+                              {/* ✅ NEW: Agent Tracing Subtitle Logic */}
+                              {(() => {
+                                // 1. Handle Multi-Agent Group Entries
+                                if (trx.sourceAgents && Array.isArray(trx.sourceAgents) && trx.sourceAgents.length > 1) {
+                                  const agentText = trx.sourceAgents.join(', ');
+                                  return (
+                                    <span 
+                                      className="text-[10px] text-purple-500/90 font-semibold mt-0.5 tracking-wide flex items-center gap-1 group-hover:text-purple-600 transition-colors cursor-help" 
+                                      title={`Agents: ${agentText}`} // Tooltip shows all names on hover
+                                    >
+                                      <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                      </svg>
+                                      Group Entry ({trx.sourceAgents.length} Agents)
+                                    </span>
+                                  );
+                                }
+                                
+                                // 2. Handle Single Agent Entries (Fallback to array[0] or legacy agentName string)
+                                const singleAgentName = (trx.sourceAgents && trx.sourceAgents[0]) || trx.agentName;
+                                
+                                if (singleAgentName && singleAgentName !== 'Desk Entry') {
+                                  return (
+                                    <span className="text-[10px] text-blue-500/80 font-medium mt-0.5 tracking-wide flex items-center gap-1 group-hover:text-blue-600 transition-colors">
+                                      <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                      </svg>
+                                      Entry by {singleAgentName}
+                                    </span>
+                                  );
+                                }
+                                
+                                return null;
+                              })()}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* NEW INVOICE DATA CELL */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-slate-600 font-medium text-xs tracking-wide group-hover:text-slate-800 transition-colors">
+                            {invoiceStr}
+                          </span>
+                        </td>
+
+                        <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tracking-tight ${text}`}>
+                          {prefix}{parseFloat(trx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                        </td>
+                        
+                        {/* ✅ UPDATED: Status Cell with Conditional Edited Badge */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
+                              {trx.status || 'COMPLETED'}
                             </span>
                             
-                            {billedVal > 0 && (
-                              <span className="text-[10px] text-slate-500 mt-0.5 tracking-wide group-hover:text-slate-700 transition-colors">
-                                Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                            {trx.isEdited && (
+                              <span 
+                                className="inline-flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-wider" 
+                                title="This record has been modified"
+                              >
+                                Edited
                               </span>
                             )}
-
-                            {/* ✅ NEW: Agent Tracing Subtitle Logic */}
-                            {(() => {
-                              // 1. Handle Multi-Agent Group Entries
-                              if (trx.sourceAgents && Array.isArray(trx.sourceAgents) && trx.sourceAgents.length > 1) {
-                                const agentText = trx.sourceAgents.join(', ');
-                                return (
-                                  <span 
-                                    className="text-[10px] text-purple-500/90 font-semibold mt-0.5 tracking-wide flex items-center gap-1 group-hover:text-purple-600 transition-colors cursor-help" 
-                                    title={`Agents: ${agentText}`} // Tooltip shows all names on hover
-                                  >
-                                    <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                    </svg>
-                                    Group Entry ({trx.sourceAgents.length} Agents)
-                                  </span>
-                                );
-                              }
-                              
-                              // 2. Handle Single Agent Entries (Fallback to array[0] or legacy agentName string)
-                              const singleAgentName = (trx.sourceAgents && trx.sourceAgents[0]) || trx.agentName;
-                              
-                              if (singleAgentName && singleAgentName !== 'Desk Entry') {
-                                return (
-                                  <span className="text-[10px] text-blue-500/80 font-medium mt-0.5 tracking-wide flex items-center gap-1 group-hover:text-blue-600 transition-colors">
-                                    <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                    </svg>
-                                    Entry by {singleAgentName}
-                                  </span>
-                                );
-                              }
-                              
-                              return null;
-                            })()}
                           </div>
+                        </td>
+
+                        {/* EDIT ACTION BUTTON */}
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                          <button
+                            onClick={(e) => handleEditClick(e, trx)}
+                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            title="Edit Date"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {loadingMore && (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-4 text-center bg-emerald-50/30">
+                        <div className="flex items-center justify-center gap-2 text-xs font-medium text-emerald-600 animate-pulse">
+                          <span className="h-4 w-4 rounded-full border-2 border-emerald-300 border-t-emerald-600 animate-spin"></span>
+                          <span>Loading more records...</span>
                         </div>
-                      </td>
-
-                      {/* NEW INVOICE DATA CELL */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-slate-600 font-medium text-xs tracking-wide group-hover:text-slate-800 transition-colors">
-                          {invoiceStr}
-                        </span>
-                      </td>
-
-                      <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tracking-tight ${text}`}>
-                        {prefix}{parseFloat(trx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                      </td>
-                      
-                      {/* ✅ UPDATED: Status Cell with Conditional Edited Badge */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-2">
-                          <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
-                            {trx.status || 'COMPLETED'}
-                          </span>
-                          
-                          {trx.isEdited && (
-                            <span 
-                              className="inline-flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-wider" 
-                              title="This record has been modified"
-                            >
-                              Edited
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* EDIT ACTION BUTTON */}
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={(e) => handleEditClick(e, trx)}
-                          className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                          title="Edit Date"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
                       </td>
                     </tr>
-                  );
-                })
+                  )}
+                </>
               )}
             </tbody>
           </table>

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import EditExpenseDateModal from '../../expenses/EditExpenseDateModal'; // ✅ Import the new modal
 
-export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onExpand, onRefresh }) {
+export default function ExpenseLogsCard({ expensesData, loading, loadingMore, hasMore, onLoadMore, isExpanded, onExpand, onRefresh }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
@@ -13,6 +13,14 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false);
+
+  // Handle infinite scroll on bottom threshold
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 100 && hasMore && !loadingMore && onLoadMore) {
+      onLoadMore();
+    }
+  };
 
   // Filter data dynamically based on search query
   const filteredData = useMemo(() => {
@@ -172,6 +180,7 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
         tabIndex={0} 
         onKeyDown={handleKeyDown}
         onMouseMove={handleMouseMove}
+        onScroll={handleScroll}
         className="overflow-auto grow focus:outline-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative"
       >
         {loading ? (
@@ -208,78 +217,91 @@ export default function ExpenseLogsCard({ expensesData, loading, isExpanded, onE
                   </td>
                 </tr>
               ) : (
-                filteredData.map((trx, index) => {
-                  const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
-                  const { dot, text, prefix } = getTrxColors(trx.type);
-                  const isSelected = index === selectedIndex;
-                  
-                  return (
-                    <tr 
-                      key={index} 
-                      onMouseEnter={() => {
-                        if (!isKeyboardNav.current) {
-                          setSelectedIndex(index);
-                        }
-                      }}
-                      className={`transition-colors group cursor-pointer ${
-                        isSelected ? 'bg-rose-100/60' : 'hover:bg-rose-50/30'
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
-                          <div className="flex flex-col">
-                            <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
-                              {trx.description}
+                <>
+                  {filteredData.map((trx, index) => {
+                    const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
+                    const { dot, text, prefix } = getTrxColors(trx.type);
+                    const isSelected = index === selectedIndex;
+                    
+                    return (
+                      <tr 
+                        key={index} 
+                        onMouseEnter={() => {
+                          if (!isKeyboardNav.current) {
+                            setSelectedIndex(index);
+                          }
+                        }}
+                        className={`transition-colors group cursor-pointer ${
+                          isSelected ? 'bg-rose-100/60' : 'hover:bg-rose-50/30'
+                        }`}
+                      >
+                        <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
+                            <div className="flex flex-col">
+                              <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
+                                {trx.description}
+                              </span>
+                              {billedVal > 0 && (
+                                <span className="text-[10px] text-slate-500 mt-0.5 tracking-wide group-hover:text-slate-700 transition-colors">
+                                  Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tracking-tight ${text}`}>
+                          {prefix}{Math.abs(parseFloat(trx.amount || 0)).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                        </td>
+                        
+                        {/* ✅ UPDATED: Status Cell with Conditional Edited Badge */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
+                              {trx.status || 'COMPLETED'}
                             </span>
-                            {billedVal > 0 && (
-                              <span className="text-[10px] text-slate-500 mt-0.5 tracking-wide group-hover:text-slate-700 transition-colors">
-                                Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                            
+                            {trx.isEdited && (
+                              <span 
+                                className="inline-flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-wider" 
+                                title="This record has been modified"
+                              >
+                                Edited
                               </span>
                             )}
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tracking-tight ${text}`}>
-                        {prefix}{Math.abs(parseFloat(trx.amount || 0)).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                      </td>
-                      
-                      {/* ✅ UPDATED: Status Cell with Conditional Edited Badge */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-2">
-                          <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
-                            {trx.status || 'COMPLETED'}
-                          </span>
-                          
-                          {trx.isEdited && (
-                            <span 
-                              className="inline-flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-wider" 
-                              title="This record has been modified"
-                            >
-                              Edited
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                        {/* ✅ NEW: Actions Cell with Edit Button */}
+                        <td className="px-6 py-4 text-center whitespace-nowrap">
+                          <button
+                            onClick={(e) => handleEditClick(e, trx)}
+                            className="text-slate-400 hover:text-blue-600 transition-colors p-1.5 rounded-lg hover:bg-blue-50 focus:outline-none"
+                            title="Edit Date"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
 
-                      {/* ✅ NEW: Actions Cell with Edit Button */}
-                      <td className="px-6 py-4 text-center whitespace-nowrap">
-                        <button
-                          onClick={(e) => handleEditClick(e, trx)}
-                          className="text-slate-400 hover:text-blue-600 transition-colors p-1.5 rounded-lg hover:bg-blue-50 focus:outline-none"
-                          title="Edit Date"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
+                  {loadingMore && (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-4 text-center bg-rose-50/30">
+                        <div className="flex items-center justify-center gap-2 text-xs font-medium text-rose-600 animate-pulse">
+                          <span className="h-4 w-4 rounded-full border-2 border-rose-300 border-t-rose-600 animate-spin"></span>
+                          <span>Loading more records...</span>
+                        </div>
                       </td>
                     </tr>
-                  );
-                })
+                  )}
+                </>
               )}
             </tbody>
           </table>

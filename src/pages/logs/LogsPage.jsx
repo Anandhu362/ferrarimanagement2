@@ -1,5 +1,5 @@
 // frontend/src/pages/logs/LogsPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PremiumCalendar from '../../components/shared/PremiumCalendar';
 import DailySummaryCards from '../../components/logs/DailySummaryCards';
@@ -18,6 +18,9 @@ export default function LogsPage() {
   // Main Ledger State
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
 
   const [branchError, setBranchError] = useState(false); 
   const navigate = useNavigate();
@@ -32,44 +35,49 @@ export default function LogsPage() {
   // State: Tracks which card is currently maximized (full-screen)
   const [expandedCard, setExpandedCard] = useState(null); 
 
-  // fetchLogs now runs a single API call to fetch the master ledger
+  // Sort logs helper
+  const sortLogsList = (list) => {
+    return [...list].sort((a, b) => {
+      const timeA = parseInt(String(a.id).split('-')[1]) || 0;
+      const timeB = parseInt(String(b.id).split('-')[1]) || 0;
+      
+      if (timeA > 0 && timeB > 0) {
+        return timeB - timeA; 
+      }
+      const dateA = new Date(a.createdAt || a.created_at);
+      const dateB = new Date(b.createdAt || b.created_at);
+      return dateB - dateA; 
+    });
+  };
+
+  // Initial / Refresh fetch
   const fetchLogs = async (datesToFetch = selectedDates) => {
     setLoading(true);
+    setNextCursor(null);
+    setHasMore(false);
 
     try {
       const activeBranch = localStorage.getItem('active_branch');
       
-      // Safety check to prevent querying null paths if local storage is cleared
       if (!activeBranch) {
         setBranchError(true);
         setLoading(false);
         return;
       }
       
-      // Dynamic API Endpoints
-      let mainEndpoint = `/api/logs/all?branchId=${encodeURIComponent(activeBranch)}`;
+      let mainEndpoint = `/api/logs/all?branchId=${encodeURIComponent(activeBranch)}&limit=30`;
 
-      // Update to handle an array of dates
       if (datesToFetch && datesToFetch.length > 0) {
         mainEndpoint = `/api/logs/daily?branchId=${encodeURIComponent(activeBranch)}&dates=${datesToFetch.join(',')}`;
       }
       
       const mainResponse = await api.get(mainEndpoint);
       
-      // 1. Process Main Logs
       if (mainResponse.data.success) {
-        const sortedLogs = mainResponse.data.data.sort((a, b) => {
-          const timeA = parseInt(String(a.id).split('-')[1]) || 0;
-          const timeB = parseInt(String(b.id).split('-')[1]) || 0;
-          
-          if (timeA > 0 && timeB > 0) {
-              return timeB - timeA; 
-          }
-          const dateA = new Date(a.createdAt || a.created_at);
-          const dateB = new Date(b.createdAt || b.created_at);
-          return dateB - dateA; 
-        });
+        const sortedLogs = sortLogsList(mainResponse.data.data || []);
         setLogs(sortedLogs);
+        setNextCursor(mainResponse.data.nextCursor || null);
+        setHasMore(!!mainResponse.data.hasMore);
       }
 
     } catch (error) {
@@ -79,6 +87,41 @@ export default function LogsPage() {
     }
   };
 
+  // Cursor-based Load More function for infinite scroll
+  const handleLoadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore || !nextCursor || (selectedDates && selectedDates.length > 0)) {
+      return;
+    }
+
+    setLoadingMore(true);
+    try {
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) return;
+
+      const endpoint = `/api/logs/all?branchId=${encodeURIComponent(activeBranch)}&limit=30&cursor=${encodeURIComponent(nextCursor)}`;
+      const response = await api.get(endpoint);
+
+      if (response.data.success) {
+        const newRows = response.data.data || [];
+        setLogs(prev => {
+          const combined = [...prev, ...newRows];
+          const seen = new Set();
+          return sortLogsList(combined.filter(item => {
+            if (!item.id || seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+          }));
+        });
+        setNextCursor(response.data.nextCursor || null);
+        setHasMore(!!response.data.hasMore);
+      }
+    } catch (error) {
+      console.error("Error loading more logs:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loading, loadingMore, hasMore, nextCursor, selectedDates]);
+
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,7 +129,7 @@ export default function LogsPage() {
 
   const handleDateSelect = (dates) => {
     setSelectedDates(dates);
-    fetchLogs(dates); // Immediately fetch new data for both tables when dates change
+    fetchLogs(dates);
   };
 
   const handleExpandToggle = (cardName) => {
@@ -228,6 +271,9 @@ export default function LogsPage() {
             <InflowLogsCard 
               inflowsData={inflows} 
               loading={loading} 
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              onLoadMore={handleLoadMore}
               isExpanded={expandedCard === 'inflows'}
               onExpand={() => handleExpandToggle('inflows')} 
               onRefresh={fetchLogs} 
@@ -238,6 +284,9 @@ export default function LogsPage() {
             <ExpenseLogsCard 
               expensesData={expenses} 
               loading={loading} 
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              onLoadMore={handleLoadMore}
               isExpanded={expandedCard === 'expenses'}
               onExpand={() => handleExpandToggle('expenses')} 
               onRefresh={fetchLogs} 
@@ -248,6 +297,9 @@ export default function LogsPage() {
             <TransferLogsCard 
               transfersData={transfers} 
               loading={loading} 
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              onLoadMore={handleLoadMore}
               isExpanded={expandedCard === 'transfers'}
               onExpand={() => handleExpandToggle('transfers')} 
             />
@@ -257,6 +309,9 @@ export default function LogsPage() {
             <PettyCashLogsCard 
               pettyCashData={pettyCash} 
               loading={loading} 
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              onLoadMore={handleLoadMore}
               isExpanded={expandedCard === 'pettyCash'}
               onExpand={() => handleExpandToggle('pettyCash')} 
             />

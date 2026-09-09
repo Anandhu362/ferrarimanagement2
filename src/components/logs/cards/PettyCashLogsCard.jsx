@@ -1,13 +1,21 @@
 // frontend/src/components/logs/cards/PettyCashLogsCard.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 
-export default function PettyCashLogsCard({ pettyCashData, loading, isExpanded, onExpand }) {
+export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore, hasMore, onLoadMore, isExpanded, onExpand }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false);
+
+  // Handle infinite scroll on bottom threshold
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 100 && hasMore && !loadingMore && onLoadMore) {
+      onLoadMore();
+    }
+  };
 
   // Filter data dynamically based on search query
   const filteredData = useMemo(() => {
@@ -141,7 +149,7 @@ export default function PettyCashLogsCard({ pettyCashData, loading, isExpanded, 
             {isExpanded ? (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 9V5m0 4H5m4 0l-5-5m11 5V5m0 4h4m-4 0l5-5M9 15v4m0-4H5m4 0l5 5m11-5v4m0-4h4m-4 0l5 5" /></svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-4v4m0 0h-4m4 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" /></svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-4v4m0 0h-4m4 0l-5-5M4 16v4m0 0h4m-4 0l-5-5m11 5v-4m0 4h-4m4 0l-5-5" /></svg>
             )}
           </button>
         </div>
@@ -153,6 +161,7 @@ export default function PettyCashLogsCard({ pettyCashData, loading, isExpanded, 
         tabIndex={0} 
         onKeyDown={handleKeyDown}
         onMouseMove={handleMouseMove}
+        onScroll={handleScroll}
         className="overflow-auto grow focus:outline-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative"
       >
         {loading ? (
@@ -188,56 +197,68 @@ export default function PettyCashLogsCard({ pettyCashData, loading, isExpanded, 
                   </td>
                 </tr>
               ) : (
-                // Map over filteredData
-                filteredData.map((trx, index) => {
-                  const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
-                  const { dot, text, prefix } = getTrxColors(trx.type);
-                  const isSelected = index === selectedIndex;
-                  
-                  return (
-                    <tr 
-                      key={index} 
-                      onMouseEnter={() => {
-                        // Only trigger hover if we are NOT using the keyboard
-                        if (!isKeyboardNav.current) {
-                          setSelectedIndex(index);
-                        }
-                      }}
-                      className={`transition-colors group cursor-pointer ${
-                        isSelected ? 'bg-amber-100/60' : 'hover:bg-amber-50/30'
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-slate-900 font-medium whitespace-nowrap">{trx.id}</td>
-                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
-                          <div className="flex flex-col">
-                            <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
-                              {trx.description}
-                            </span>
-                            {billedVal > 0 && (
-                              <span className="text-[10px] text-slate-500 mt-0.5 tracking-wide group-hover:text-slate-700 transition-colors">
-                                Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                <>
+                  {filteredData.map((trx, index) => {
+                    const billedVal = parseFloat(trx.billedAmount || trx.billed_amount || 0);
+                    const { dot, text, prefix } = getTrxColors(trx.type);
+                    const isSelected = index === selectedIndex;
+                    
+                    return (
+                      <tr 
+                        key={index} 
+                        onMouseEnter={() => {
+                          // Only trigger hover if we are NOT using the keyboard
+                          if (!isKeyboardNav.current) {
+                            setSelectedIndex(index);
+                          }
+                        }}
+                        className={`transition-colors group cursor-pointer ${
+                          isSelected ? 'bg-amber-100/60' : 'hover:bg-amber-50/30'
+                        }`}
+                      >
+                        <td className="px-6 py-4 text-slate-900 font-medium whitespace-nowrap">{trx.id}</td>
+                        <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
+                            <div className="flex flex-col">
+                              <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
+                                {trx.description}
                               </span>
-                            )}
+                              {billedVal > 0 && (
+                                <span className="text-[10px] text-slate-500 mt-0.5 tracking-wide group-hover:text-slate-700 transition-colors">
+                                  Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                </span>
+                              )}
+                            </div>
                           </div>
+                        </td>
+
+                        <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tracking-tight ${text}`}>
+                          {prefix}{parseFloat(trx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                        </td>
+                        
+                        <td className="px-6 py-4 text-center whitespace-nowrap">
+                          <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
+                            {trx.status || 'COMPLETED'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {loadingMore && (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-4 text-center bg-amber-50/30">
+                        <div className="flex items-center justify-center gap-2 text-xs font-medium text-amber-600 animate-pulse">
+                          <span className="h-4 w-4 rounded-full border-2 border-amber-300 border-t-amber-600 animate-spin"></span>
+                          <span>Loading more records...</span>
                         </div>
                       </td>
-
-                      <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tracking-tight ${text}`}>
-                        {prefix}{parseFloat(trx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                      </td>
-                      
-                      <td className="px-6 py-4 text-center whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-semibold tracking-wide uppercase border ${getStatusBadge(trx.status || 'COMPLETED')}`}>
-                          {trx.status || 'COMPLETED'}
-                        </span>
-                      </td>
                     </tr>
-                  );
-                })
+                  )}
+                </>
               )}
             </tbody>
           </table>
