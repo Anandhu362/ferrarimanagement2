@@ -90,41 +90,41 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6 animate-in fade-in slide-in-from-top-4 duration-700">
       
-      {/* 🏛️ FEATURED CARD: CEO VAULT CLOSING BALANCE (Image 3 Style) */}
-      <div className="bg-brand-dark rounded-[2rem] p-6 lg:p-7 text-white relative overflow-hidden shadow-[0_12px_40px_rgb(43,38,64,0.3)] transition-all hover:shadow-[0_16px_48px_rgb(43,38,64,0.4)] flex flex-col justify-between">
+      {/* 🏛️ FEATURED CARD: CEO VAULT CLOSING BALANCE */}
+      <div className="bg-brand-dark rounded-[2rem] p-5 lg:p-6 text-white relative overflow-hidden shadow-[0_12px_40px_rgb(43,38,64,0.3)] transition-all hover:shadow-[0_16px_48px_rgb(43,38,64,0.4)] flex flex-col justify-between">
         {/* Ambient Glow Orbs */}
         <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
         <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-brand-light/30 rounded-full blur-2xl pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col justify-between h-full">
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-white/60 text-[11px] font-medium tracking-widest uppercase">CEO Vault Balance</p>
-              <span className="text-[10px] font-bold text-white/40 tracking-wider uppercase bg-white/10 px-2.5 py-0.5 rounded-full">{dateLabel}</span>
+            <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+              <p className="text-white/60 text-[10px] sm:text-[11px] font-medium tracking-widest uppercase">CEO Vault Balance</p>
+              <span className="text-[10px] font-bold text-white/50 tracking-wider uppercase bg-white/10 px-2 py-0.5 rounded-full">{dateLabel}</span>
             </div>
 
-            <h3 className="text-3xl lg:text-[2rem] xl:text-[2.2rem] font-semibold tracking-tighter leading-tight mt-1">
-              <span className="text-lg lg:text-xl text-white/50 font-light mr-1 tracking-normal">AED</span>
+            <h3 className="text-2xl sm:text-3xl xl:text-[1.85rem] 2xl:text-[2.1rem] font-semibold tracking-tighter leading-tight mt-1 whitespace-nowrap">
+              <span className="text-base sm:text-lg text-white/50 font-light mr-1 tracking-normal">AED</span>
               {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
           </div>
 
-          <div className="mt-5 flex flex-col gap-2.5">
+          <div className="mt-4 flex flex-col gap-2">
             {/* Live Data Badge */}
-            <div className="flex items-center gap-2 text-[11px] font-medium text-emerald-300 bg-emerald-400/10 backdrop-blur-md w-max px-3 py-1.5 rounded-xl border border-emerald-400/20">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium text-emerald-300 bg-emerald-400/10 backdrop-blur-md w-fit px-2.5 py-1 rounded-xl border border-emerald-400/20">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              Live Data Connected
+              <span>Live Data Connected</span>
             </div>
 
             {/* Breakdown Pill */}
-            <div className="flex items-center gap-2.5 text-[11px] font-medium text-white/70 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 w-max flex-wrap">
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium text-white/70 bg-white/5 px-2.5 py-1 rounded-xl border border-white/10 w-fit flex-wrap">
               <span>CEO: <span className="text-white tracking-wide">AED {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
               <span className="w-px h-3 bg-white/20"></span>
-              <span>Reserve: <span className="text-white tracking-wide">AED {reserveBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+              <span>Res: <span className="text-white tracking-wide">AED {reserveBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
             </div>
           </div>
         </div>
@@ -134,10 +134,10 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
       {summaryData.map((card, index) => (
         <div 
           key={index} 
-          className={`p-6 rounded-[2rem] border ${card.bg} ${card.border} backdrop-blur-sm shadow-sm transition-all hover:shadow-md hover:-translate-y-1 flex flex-col justify-between`}
+          className={`p-4 sm:p-5 lg:p-5 2xl:p-6 rounded-[2rem] border ${card.bg} ${card.border} backdrop-blur-sm shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between`}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className={`p-2.5 rounded-xl bg-white shadow-sm ${card.color}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className={`p-2 sm:p-2.5 rounded-xl bg-white shadow-sm ${card.color}`}>
               {card.icon}
             </div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Summary</span>
@@ -147,7 +147,7 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
             <span className="text-slate-500 text-xs font-medium mb-1">{card.label}</span>
             <div className="flex items-baseline gap-1">
               <span className="text-[10px] font-bold text-slate-400">AED</span>
-              <span className={`text-2xl font-bold tracking-tight ${card.color}`}>
+              <span className={`text-xl lg:text-2xl font-bold tracking-tight whitespace-nowrap ${card.color}`}>
                 {card.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>

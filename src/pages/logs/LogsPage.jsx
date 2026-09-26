@@ -11,6 +11,7 @@ import ExpenseLogsCard from '../../components/logs/cards/ExpenseLogsCard';
 import TransferLogsCard from '../../components/logs/cards/TransferLogsCard';
 import PettyCashLogsCard from '../../components/logs/cards/PettyCashLogsCard';
 import DailyDenominationsCard from '../../components/logs/cards/DailyDenominationsCard';
+import CeoVaultDailyDenominationsCard from '../../components/logs/cards/CeoVaultDailyDenominationsCard';
 
 import api from '../../config/api'; 
 
@@ -260,10 +261,10 @@ export default function LogsPage() {
       )}
 
       {/* RESTRUCTURED DASHBOARD GRID VIEW */}
-      <div className={`transition-all duration-500 ${expandedCard ? 'block' : 'grid grid-cols-1 lg:grid-cols-12 gap-6'}`}>
+      <div className={`transition-all duration-500 ${expandedCard ? 'block' : 'grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 xl:gap-6'}`}>
         
         {/* LEFT COLUMN: The Table Cards */}
-        <div className={`${expandedCard ? 'block' : 'lg:col-span-8 grid grid-cols-1 xl:grid-cols-2 gap-6'}`}>
+        <div className={`${expandedCard ? 'block' : 'lg:col-span-8 grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-5 xl:gap-6'}`}>
           
           {/* Back Button (Only shows when a card is expanded) */}
           {expandedCard && (
@@ -334,8 +335,13 @@ export default function LogsPage() {
 
         {/* RIGHT COLUMN: Daily Denominations Breakdown Sidebar */}
         {!expandedCard && (
-          <div className="lg:col-span-4 flex flex-col gap-6">
+          <div className="lg:col-span-4 flex flex-col gap-4 lg:gap-5 xl:gap-6">
             <DailyDenominationsCard selectedDates={selectedDates} />
+            <CeoVaultDailyDenominationsCard 
+              ceoVaultSummary={ceoVaultSummary} 
+              selectedDates={selectedDates} 
+              loading={loading} 
+            />
           </div>
         )}
 

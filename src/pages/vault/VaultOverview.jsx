@@ -142,66 +142,64 @@ export default function VaultOverview() {
           </div>
 
           {/* Rules Card */}
-          <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm">
-            <h4 className="text-sm font-semibold text-slate-900 mb-6">Vault Security Rules</h4>
-            <ul className="space-y-4 text-sm">
+          <div className="bg-white rounded-[2rem] p-5 sm:p-6 lg:p-7 border border-slate-100 shadow-sm">
+            <h4 className="text-sm font-semibold text-slate-900 mb-4 sm:mb-6">Vault Security Rules</h4>
+            <ul className="space-y-3.5 text-sm">
               <li className="flex gap-3 text-slate-600">
                 <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                <span className="leading-relaxed font-light">Money cannot be manually adjusted here. It must flow through authorized Inflow or Expense forms.</span>
+                <span className="leading-relaxed font-light text-xs sm:text-sm">Money cannot be manually adjusted here. It must flow through authorized Inflow or Expense forms.</span>
               </li>
               <li className="flex gap-3 text-slate-600">
                 <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                <span className="leading-relaxed font-light">Petty cash replenishments are pulled automatically from these denominations.</span>
+                <span className="leading-relaxed font-light text-xs sm:text-sm">Petty cash replenishments are pulled automatically from these denominations.</span>
               </li>
             </ul>
           </div>
         </div>
 
         {/* RIGHT COLUMN: Denomination Distribution */}
-        <div className="lg:col-span-8 bg-white rounded-[2rem] p-8 lg:p-10 border border-slate-100 shadow-sm flex flex-col">
+        <div className="lg:col-span-8 bg-white rounded-[2rem] p-5 sm:p-6 lg:p-8 border border-slate-100 shadow-sm flex flex-col">
           
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Denomination Distribution</h3>
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-900 tracking-tight">Denomination Distribution</h3>
             <span className="text-xs font-medium text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
               9 Categories Tracked
             </span>
           </div>
 
           {/* Table Header */}
-          <div className="grid grid-cols-12 gap-4 pb-4 border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">
-            <div className="col-span-4 sm:col-span-3 pl-2">Note/Coin</div>
+          <div className="grid grid-cols-12 gap-3 pb-3 border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-3">
+            <div className="col-span-4 sm:col-span-3 pl-1">Note/Coin</div>
             <div className="col-span-2 text-center">Qty</div>
             <div className="col-span-4 sm:col-span-3 text-right">Total Value</div>
             <div className="col-span-4 text-right pr-2 hidden sm:block">Vault Share</div>
           </div>
 
           {/* List */}
-          <div className="flex-1 space-y-6 mt-2">
+          <div className="flex-1 space-y-3.5 mt-1">
             {vaultData.map((item, idx) => {
               // Calculate width for the progress bar based on total balance
               const percentage = totalBalance > 0 ? (item.totalValue / totalBalance) * 100 : 0;
 
               return (
-                <div key={idx} className="grid grid-cols-12 gap-4 items-center group">
-                  <div className="col-span-4 sm:col-span-3 flex items-center gap-3">
-                    <div className={`w-8 h-6 rounded flex items-center justify-center text-[10px] font-bold ${item.type === 'note' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100 rounded-full w-7 h-7'}`}>
-                      {item.type === 'note' ? '💵' : '🪙'}
-                    </div>
-                    <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                <div key={idx} className="grid grid-cols-12 gap-3 items-center group hover:bg-slate-50/50 p-1 rounded-xl transition-colors">
+                  <div className="col-span-4 sm:col-span-3 flex items-center gap-2.5">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.value >= 100 ? 'bg-indigo-500' : (item.value >= 10 ? 'bg-emerald-500' : 'bg-amber-400')}`}></span>
+                    <span className="text-xs sm:text-sm font-medium text-slate-700 truncate">{item.label}</span>
                   </div>
                   
                   <div className="col-span-2 flex justify-center">
-                    <span className="bg-slate-50 border border-slate-100 text-slate-600 text-xs font-medium px-4 py-1.5 rounded-xl">
+                    <span className="bg-slate-50 border border-slate-100 text-slate-600 text-xs font-medium px-3 py-1 rounded-lg">
                       {item.qty === 0 ? '-' : item.qty.toLocaleString()}
                     </span>
                   </div>
                   
-                  <div className="col-span-6 sm:col-span-3 text-right font-semibold text-slate-900 text-sm">
+                  <div className="col-span-6 sm:col-span-3 text-right font-semibold text-slate-900 text-xs sm:text-sm whitespace-nowrap">
                     {item.totalValue === 0 ? '-' : item.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2})}
                   </div>
                   
-                  <div className="col-span-4 hidden sm:flex items-center justify-end pl-6">
-                    <div className="w-full bg-slate-50 rounded-full h-1.5 overflow-hidden">
+                  <div className="col-span-4 hidden sm:flex items-center justify-end pl-4">
+                    <div className="w-full max-w-[120px] bg-slate-100 rounded-full h-1.5 overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-1000 ${percentage > 30 ? 'bg-brand-dark' : percentage > 10 ? 'bg-brand-light' : 'bg-slate-400'}`} 
                         style={{ width: `${percentage}%` }}

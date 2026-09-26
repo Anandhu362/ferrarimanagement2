@@ -239,7 +239,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 max-w-[1600px] mx-auto pb-12">
+    <div className="space-y-6 animate-in fade-in duration-700 max-w-[1600px] mx-auto pb-8">
       
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -257,25 +257,25 @@ export default function Dashboard() {
       </div>
 
       {/* TOP SECTION */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <div className="bg-brand-dark rounded-[2rem] p-7 text-white relative overflow-hidden shadow-[0_12px_40px_rgb(43,38,64,0.3)]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5">
+        <div className="bg-brand-dark rounded-[2rem] p-5 sm:p-6 text-white relative overflow-hidden shadow-[0_12px_40px_rgb(43,38,64,0.3)]">
           <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
           <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-brand-light/30 rounded-full blur-2xl"></div>
           <div className="relative z-10">
             <p className="text-white/60 text-xs font-medium mb-1.5 tracking-widest uppercase">Total Vault Balance</p>
-            <h3 className="text-4xl font-semibold tracking-tighter">
-              <span className="text-xl text-white/50 font-light mr-1 tracking-normal">AED</span>
+            <h3 className="text-3xl lg:text-[1.85rem] xl:text-[2rem] font-semibold tracking-tighter whitespace-nowrap">
+              <span className="text-lg lg:text-xl text-white/50 font-light mr-1 tracking-normal">AED</span>
               {totalCombinedVaultBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}
             </h3>
             
-            <div className="mt-5 flex flex-col gap-3">
-              <div className="flex items-center gap-2 text-xs font-medium text-emerald-300 bg-emerald-400/10 backdrop-blur-md w-max px-3 py-1.5 rounded-xl border border-emerald-400/20">
+            <div className="mt-4 flex flex-col gap-2.5">
+              <div className="flex items-center gap-2 text-xs font-medium text-emerald-300 bg-emerald-400/10 backdrop-blur-md w-fit px-3 py-1.5 rounded-xl border border-emerald-400/20">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
                 Live Data Connected
               </div>
               
               {/* Breakdown Row */}
-              <div className="flex items-center gap-3 text-[11px] font-medium text-white/70 bg-white/5 px-3 py-2 rounded-xl border border-white/10 w-max">
+              <div className="flex items-center gap-2.5 text-[11px] font-medium text-white/70 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 w-fit flex-wrap">
                 <span>CEO: <span className="text-white tracking-wide">AED {ceoVaultBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></span>
                 <span className="w-px h-3 bg-white/20"></span>
                 <span>Reserve: <span className="text-white tracking-wide">AED {reserveVaultBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></span>
@@ -284,41 +284,47 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-7 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-shadow duration-300">
+        <div className="bg-white rounded-[2rem] p-5 sm:p-6 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-shadow duration-300">
           <div className="flex justify-between items-start">
             <p className="text-slate-400 text-xs font-medium mb-1.5 tracking-widest uppercase">Petty Cash Fund</p>
             <span className="bg-emerald-50 border border-emerald-100 p-1.5 rounded-full">
                <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
             </span>
           </div>
-          <h3 className="text-4xl font-semibold text-slate-900 tracking-tighter">
-            <span className="text-xl text-slate-300 font-light mr-1 tracking-normal">AED</span>
+          <h3 className="text-3xl lg:text-[1.85rem] xl:text-[2rem] font-semibold text-slate-900 tracking-tighter whitespace-nowrap">
+            <span className="text-lg text-slate-300 font-light mr-1 tracking-normal">AED</span>
             {pettyCash.toLocaleString(undefined, {minimumFractionDigits: 2})}
           </h3>
-          <div className="mt-5 flex items-center gap-2 text-xs text-slate-500">
+          <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
             <span className="bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl font-medium">Fully Replenished</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-7 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-shadow duration-300">
+        <div className="bg-white rounded-[2rem] p-5 sm:p-6 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-shadow duration-300">
           <p className="text-slate-400 text-xs font-medium mb-1.5 tracking-widest uppercase">Today's Inflow</p>
-          <h3 className="text-4xl font-semibold text-slate-900 tracking-tighter text-emerald-600">
-            <span className="text-xl text-emerald-600/50 font-light mr-1 tracking-normal">AED</span>
+          <h3 className="text-3xl lg:text-[1.85rem] xl:text-[2rem] font-semibold text-slate-900 tracking-tighter text-emerald-600 whitespace-nowrap">
+            <span className="text-lg text-emerald-600/50 font-light mr-1 tracking-normal">AED</span>
             {todayInflow.toLocaleString(undefined, {minimumFractionDigits: 2})}
           </h3>
+          <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
+            <span className="bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl font-medium">Active Ledger</span>
+          </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-7 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-shadow duration-300">
+        <div className="bg-white rounded-[2rem] p-5 sm:p-6 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-shadow duration-300">
           <p className="text-slate-400 text-xs font-medium mb-1.5 tracking-widest uppercase">Today's Expenses</p>
-          <h3 className="text-4xl font-semibold text-slate-900 tracking-tighter text-rose-500">
-            <span className="text-xl text-rose-500/50 font-light mr-1 tracking-normal">AED</span>
+          <h3 className="text-3xl lg:text-[1.85rem] xl:text-[2rem] font-semibold text-slate-900 tracking-tighter text-rose-500 whitespace-nowrap">
+            <span className="text-lg text-rose-500/50 font-light mr-1 tracking-normal">AED</span>
             {todayExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}
           </h3>
+          <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
+            <span className="bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl font-medium">Expenses & Sweeps</span>
+          </div>
         </div>
       </div>
 
       {/* MIDDLE SECTION: 12-Column Balanced Fintech Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 xl:gap-6 items-stretch">
         
         <CashFlowAnalyticsChart 
           trendData={trendData} 
@@ -330,18 +336,18 @@ export default function Dashboard() {
         <AgentPerformanceCard agentPerformance={agentPerformance} />
 
         {/* Vault Composition - LIVE DATA */}
-        <div className="lg:col-span-3 bg-white rounded-[2rem] p-8 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col justify-between">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Vault Composition</h3>
-            <p className="text-xs text-slate-400 mt-1 font-light">Current denomination breakdown</p>
+        <div className="lg:col-span-3 bg-white rounded-[2rem] p-5 sm:p-6 lg:p-7 border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col justify-between">
+          <div className="mb-4">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-900 tracking-tight">Vault Composition</h3>
+            <p className="text-xs text-slate-400 mt-0.5 font-light">Current denomination breakdown</p>
           </div>
           
-          <div className="flex-1 flex flex-col justify-center space-y-4">
+          <div className="flex-1 flex flex-col justify-center space-y-3.5">
             {liveComposition.map((item, index) => (
               <div key={index} className="flex flex-col gap-1.5 group">
                 <div className="flex justify-between items-end">
                   <span className="text-xs font-semibold text-slate-700">{item.label}</span>
-                  <span className="text-xs font-bold text-slate-900">
+                  <span className="text-xs font-bold text-slate-900 whitespace-nowrap">
                     AED {item.value.toLocaleString(undefined, {minimumFractionDigits: 2})}
                   </span>
                 </div>
@@ -359,7 +365,7 @@ export default function Dashboard() {
       </div>
 
       {/* BOTTOM SECTION: 12-Column Balanced Grid with Procurement Card & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 xl:gap-6 items-stretch">
         
         {/* Left Side: Procurement & Vendor Volume Donut Card */}
         <ProcurementVolumeCard procurementStats={procurementStats} />
@@ -367,10 +373,10 @@ export default function Dashboard() {
         {/* Right Side: Recent Activity Table */}
         <div className="lg:col-span-7 bg-white rounded-[2rem] border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] overflow-hidden flex flex-col justify-between">
           <div>
-            <div className="p-7 md:p-8 border-b border-slate-100/80 flex justify-between items-center">
+            <div className="p-5 sm:p-6 border-b border-slate-100/80 flex justify-between items-center">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Recent Vault Activity</h3>
-                <p className="text-xs text-slate-400 mt-1 font-light">Latest inflows, expenses, and automated sweeps.</p>
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 tracking-tight">Recent Vault Activity</h3>
+                <p className="text-xs text-slate-400 mt-0.5 font-light">Latest inflows, expenses, and automated sweeps.</p>
               </div>
               <button 
                 onClick={() => navigate('/logs')}
