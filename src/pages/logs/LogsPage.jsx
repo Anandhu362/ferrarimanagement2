@@ -29,6 +29,9 @@ export default function LogsPage() {
   const [selectedDates, setSelectedDates] = useState([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
+  // State for CEO Vault Pre-Aggregated Summary
+  const [ceoVaultSummary, setCeoVaultSummary] = useState(null);
+  
   // State for Export Modal
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
@@ -78,6 +81,12 @@ export default function LogsPage() {
         setLogs(sortedLogs);
         setNextCursor(mainResponse.data.nextCursor || null);
         setHasMore(!!mainResponse.data.hasMore);
+
+        if (mainResponse.data.ceoVaultSummary) {
+          setCeoVaultSummary(mainResponse.data.ceoVaultSummary);
+        } else {
+          setCeoVaultSummary(null);
+        }
       }
 
     } catch (error) {
@@ -243,7 +252,11 @@ export default function LogsPage() {
 
       {/* Conditional Rendering of Daily Summary Cards */}
       {selectedDates.length > 0 && !loading && !expandedCard && (
-        <DailySummaryCards logs={logs} />
+        <DailySummaryCards 
+          logs={logs} 
+          ceoVaultSummary={ceoVaultSummary}
+          selectedDates={selectedDates}
+        />
       )}
 
       {/* RESTRUCTURED DASHBOARD GRID VIEW */}

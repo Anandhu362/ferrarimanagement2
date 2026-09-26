@@ -2,27 +2,41 @@ import React from 'react';
 
 /**
  * DailySummaryCards - High-fidelity financial snapshots for a specific date.
+ * Features the featured Dark Container for the CEO Vault Closing Balance (Image 3 Style)
+ * alongside categorized daily transactional metrics.
+ * 
  * @param {Array} logs - The filtered logs for the selected date.
+ * @param {Object} ceoVaultSummary - Pre-aggregated CEO Vault snapshot data.
+ * @param {Array} selectedDates - Array of active selected date strings.
  */
-export default function DailySummaryCards({ logs = [] }) {
+export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, selectedDates = [] }) {
   // Logic to aggregate totals based on transaction type
   const totals = logs.reduce((acc, trx) => {
     const amount = parseFloat(trx.amount || 0);
     const type = trx.type;
 
     if (type === 'INFLOW' || type === 'TEMP_INFLOW') {
-        acc.inflow += amount;
+      acc.inflow += amount;
     } else if (type === 'OUTFLOW' || type === 'EXPENSE') {
-        // ✅ FIX: Force absolute value so mixed signs in the database add up correctly
-        acc.outflow += Math.abs(amount); 
+      // Force absolute value so mixed signs in the database add up correctly
+      acc.outflow += Math.abs(amount); 
     } else if (type === 'EXCHANGE') {
-        acc.exchange += amount;
+      acc.exchange += amount;
     } else if (type === 'TRANSFER') {
-        acc.transfer += amount;
+      acc.transfer += amount;
     }
     
     return acc;
   }, { inflow: 0, outflow: 0, exchange: 0, transfer: 0 });
+
+  // CEO Vault Snapshot Numbers
+  const closingBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.closingBalance) || 0) : 0;
+  const reserveBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.reserveVaultBalance) || 0) : 0;
+
+  // Format active date string for header
+  const dateLabel = selectedDates.length === 1
+    ? new Date(selectedDates[0]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : (selectedDates.length > 1 ? `${selectedDates.length} Dates` : 'Day Snapshot');
 
   const summaryData = [
     { 
@@ -76,11 +90,51 @@ export default function DailySummaryCards({ logs = [] }) {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+      
+      {/* 🏛️ FEATURED CARD: CEO VAULT CLOSING BALANCE (Image 3 Style) */}
+      <div className="bg-brand-dark rounded-[2rem] p-6 lg:p-7 text-white relative overflow-hidden shadow-[0_12px_40px_rgb(43,38,64,0.3)] transition-all hover:shadow-[0_16px_48px_rgb(43,38,64,0.4)] flex flex-col justify-between">
+        {/* Ambient Glow Orbs */}
+        <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-brand-light/30 rounded-full blur-2xl pointer-events-none"></div>
+
+        <div className="relative z-10 flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-white/60 text-[11px] font-medium tracking-widest uppercase">CEO Vault Balance</p>
+              <span className="text-[10px] font-bold text-white/40 tracking-wider uppercase bg-white/10 px-2.5 py-0.5 rounded-full">{dateLabel}</span>
+            </div>
+
+            <h3 className="text-3xl lg:text-[2rem] xl:text-[2.2rem] font-semibold tracking-tighter leading-tight mt-1">
+              <span className="text-lg lg:text-xl text-white/50 font-light mr-1 tracking-normal">AED</span>
+              {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h3>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-2.5">
+            {/* Live Data Badge */}
+            <div className="flex items-center gap-2 text-[11px] font-medium text-emerald-300 bg-emerald-400/10 backdrop-blur-md w-max px-3 py-1.5 rounded-xl border border-emerald-400/20">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              Live Data Connected
+            </div>
+
+            {/* Breakdown Pill */}
+            <div className="flex items-center gap-2.5 text-[11px] font-medium text-white/70 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 w-max flex-wrap">
+              <span>CEO: <span className="text-white tracking-wide">AED {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+              <span className="w-px h-3 bg-white/20"></span>
+              <span>Reserve: <span className="text-white tracking-wide">AED {reserveBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 📊 THE 4 CATEGORIZED SUMMARY CARDS */}
       {summaryData.map((card, index) => (
         <div 
           key={index} 
-          className={`p-6 rounded-[1.5rem] border ${card.bg} ${card.border} backdrop-blur-sm shadow-sm transition-all hover:shadow-md hover:-translate-y-1`}
+          className={`p-6 rounded-[2rem] border ${card.bg} ${card.border} backdrop-blur-sm shadow-sm transition-all hover:shadow-md hover:-translate-y-1 flex flex-col justify-between`}
         >
           <div className="flex items-center justify-between mb-4">
             <div className={`p-2.5 rounded-xl bg-white shadow-sm ${card.color}`}>
