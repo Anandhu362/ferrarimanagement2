@@ -1,29 +1,65 @@
 // frontend/src/components/shared/PremiumCalendar.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 /**
  * PremiumCalendar - A high-end fintech-style date picker dropdown.
  * @param {Array} selectedDates - Array of ISO format date strings (['YYYY-MM-DD', ...]).
- * @param {function} onDateSelect - Callback function(dateStringArray).
+ * @param {string|Array} selectedDate - Single date string ('YYYY-MM-DD') or array.
+ * @param {function} onDateSelect - Callback function(dateStringOrArray).
+ * @param {function} onSelectDate - Callback function(dateString).
  * @param {boolean} isOpen - Controls visibility.
  * @param {function} onClose - Closes the dropdown.
+ * @param {string} accentColor - 'dark' | 'rose' | 'emerald' | 'brand'
  * @param {node} children - Optional custom UI (like Download buttons) to render at the bottom.
  */
-export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOpen, onClose, children }) {
+export default function PremiumCalendar({ 
+  selectedDates = [], 
+  selectedDate = null,
+  onDateSelect, 
+  onSelectDate,
+  isOpen = true, 
+  onClose, 
+  accentColor = 'dark',
+  children 
+}) {
   const [viewDate, setViewDate] = useState(new Date());
   // 'date' (days grid), 'month' (12 months grid), 'year' (decade grid)
   const [viewMode, setViewMode] = useState('date'); 
 
-  // ✅ FIX: Extract the first date as a primitive string to prevent referential equality loops
-  const firstSelectedDate = selectedDates && selectedDates.length > 0 ? selectedDates[0] : null;
+  // Normalize both selectedDates and selectedDate into a unified Array of strings
+  const normalizedDates = useMemo(() => {
+    const list = [];
+    if (Array.isArray(selectedDates)) {
+      list.push(...selectedDates);
+    } else if (typeof selectedDates === 'string' && selectedDates.trim()) {
+      list.push(selectedDates.trim());
+    }
+
+    if (Array.isArray(selectedDate)) {
+      list.push(...selectedDate);
+    } else if (typeof selectedDate === 'string' && selectedDate.trim()) {
+      list.push(selectedDate.trim());
+    }
+    return [...new Set(list.filter(Boolean))];
+  }, [selectedDates, selectedDate]);
+
+  // Extract the first date as a primitive string to prevent referential equality loops
+  const firstSelectedDate = normalizedDates.length > 0 ? normalizedDates[0] : null;
 
   // Sync viewDate and reset view mode when the calendar opens
   useEffect(() => {
     if (isOpen) {
-      setViewDate(firstSelectedDate ? new Date(firstSelectedDate) : new Date());
+      if (firstSelectedDate) {
+        const parsed = new Date(firstSelectedDate);
+        if (!isNaN(parsed.getTime())) {
+          setViewDate(parsed);
+        }
+      } else {
+        setViewDate(new Date());
+      }
       setViewMode('date'); 
     }
-  }, [isOpen, firstSelectedDate]); // ✅ FIX: Depend on the primitive string, not the array reference
+  }, [isOpen, firstSelectedDate]);
 
   if (!isOpen) return null;
 
@@ -93,16 +129,28 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
     let newSelectedDates;
 
     if (e.ctrlKey || e.metaKey) {
-      if (selectedDates.includes(dateString)) {
-        newSelectedDates = selectedDates.filter(date => date !== dateString);
+      if (normalizedDates.includes(dateString)) {
+        newSelectedDates = normalizedDates.filter(date => date !== dateString);
       } else {
-        newSelectedDates = [...selectedDates, dateString];
+        newSelectedDates = [...normalizedDates, dateString];
       }
     } else {
       newSelectedDates = [dateString];
     }
     
-    onDateSelect(newSelectedDates);
+    if (typeof onSelectDate === 'function') {
+      onSelectDate(dateString);
+    }
+
+    if (typeof onDateSelect === 'function') {
+      // If consumer specifically provided `selectedDate` (singular) and not `selectedDates`,
+      // pass dateString so singular consumers get the date value directly
+      if (selectedDate !== null && selectedDate !== undefined && (!selectedDates || selectedDates.length === 0)) {
+        onDateSelect(dateString, newSelectedDates);
+      } else {
+        onDateSelect(newSelectedDates, dateString);
+      }
+    }
   };
 
   // Setup for Days Grid
@@ -118,6 +166,21 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
   
   // Setup for Months Grid
   const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Style selector for active day
+  const getSelectedDayClasses = () => {
+    switch (accentColor) {
+      case 'rose':
+        return 'bg-rose-600 text-white font-bold shadow-lg shadow-rose-600/30 ring-2 ring-rose-600 ring-offset-2 scale-105';
+      case 'emerald':
+        return 'bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30 ring-2 ring-emerald-600 ring-offset-2 scale-105';
+      case 'brand':
+        return 'bg-[#5F558C] text-white font-bold shadow-lg shadow-[#2B2640]/25 ring-2 ring-[#5F558C] ring-offset-2 scale-105';
+      case 'dark':
+      default:
+        return 'bg-slate-900 text-white font-bold shadow-lg shadow-slate-900/25 ring-2 ring-slate-900 ring-offset-2 scale-105';
+    }
+  };
 
   return (
     <>
@@ -166,20 +229,25 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
         {/* ======================= */}
         {viewMode === 'year' && (
           <div className="grid grid-cols-3 gap-2 mt-2">
-            {years.map(y => (
-              <button 
-                type="button" 
-                key={y}
-                onClick={(e) => handleYearSelect(e, y)} 
-                className={`py-3 text-sm font-semibold rounded-xl transition-colors ${
-                  y === currentYear 
-                    ? 'bg-slate-900 text-white shadow-md' 
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                {y}
-              </button>
-            ))}
+            {years.map(y => {
+              const isCurrentYear = y === currentYear;
+              return (
+                <button 
+                  type="button" 
+                  key={y}
+                  onClick={(e) => handleYearSelect(e, y)} 
+                  className={`py-3 text-sm font-semibold rounded-xl transition-all ${
+                    isCurrentYear 
+                      ? accentColor === 'rose'
+                        ? 'bg-rose-600 text-white shadow-md'
+                        : 'bg-slate-900 text-white shadow-md' 
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {y}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -188,20 +256,25 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
         {/* ======================= */}
         {viewMode === 'month' && (
           <div className="grid grid-cols-3 gap-2 mt-2">
-            {shortMonths.map((m, i) => (
-              <button 
-                type="button" 
-                key={m}
-                onClick={(e) => handleMonthSelect(e, i)} 
-                className={`py-3 text-sm font-semibold rounded-xl transition-colors ${
-                  i === currentMonth 
-                    ? 'bg-slate-900 text-white shadow-md' 
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
+            {shortMonths.map((m, i) => {
+              const isCurrentMonth = i === currentMonth;
+              return (
+                <button 
+                  type="button" 
+                  key={m}
+                  onClick={(e) => handleMonthSelect(e, i)} 
+                  className={`py-3 text-sm font-semibold rounded-xl transition-all ${
+                    isCurrentMonth 
+                      ? accentColor === 'rose'
+                        ? 'bg-rose-600 text-white shadow-md'
+                        : 'bg-slate-900 text-white shadow-md' 
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {m}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -225,7 +298,7 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
 
               {days.map((day) => {
                 const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isSelected = selectedDates.includes(dateStr);
+                const isSelected = normalizedDates.includes(dateStr);
                 const isToday = todayStr === dateStr;
 
                 return (
@@ -233,12 +306,12 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
                     type="button" 
                     key={day}
                     onClick={(e) => handleDaySelect(e, day)}
-                    className={`w-9 h-9 flex items-center justify-center rounded-full text-xs font-medium transition-all ${
+                    className={`w-9 h-9 flex items-center justify-center rounded-full text-xs transition-all duration-150 ${
                       isSelected 
-                        ? 'bg-slate-900 text-white shadow-md' 
+                        ? getSelectedDayClasses()
                         : isToday 
-                          ? 'text-emerald-500 bg-emerald-50 hover:bg-emerald-100 font-bold'
-                          : 'text-slate-700 hover:bg-slate-100'
+                          ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-bold ring-1 ring-emerald-200'
+                          : 'text-slate-700 hover:bg-slate-100 font-medium'
                     }`}
                   >
                     {day}
@@ -253,11 +326,16 @@ export default function PremiumCalendar({ selectedDates = [], onDateSelect, isOp
         {children ? (
           children
         ) : (
-          selectedDates.length > 0 && (
+          normalizedDates.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-50 flex justify-center">
               <button 
                 type="button" 
-                onClick={(e) => { e.stopPropagation(); onDateSelect([]); onClose(); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (typeof onDateSelect === 'function') onDateSelect([]); 
+                  if (typeof onSelectDate === 'function') onSelectDate(null);
+                  onClose && onClose(); 
+                }}
                 className="text-[11px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-widest transition-colors"
               >
                 Clear Filter

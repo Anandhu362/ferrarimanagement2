@@ -134,10 +134,13 @@ export default function ExportLedgerModal({ isOpen, onClose }) {
         isOpen={isOpen} 
         onClose={onClose} 
         selectedDate={selectedDate}
+        selectedDates={selectedDate ? (Array.isArray(selectedDate) ? selectedDate : [selectedDate]) : []}
         onDateSelect={(date) => {
-          setSelectedDate(date);
+          const resolvedDate = Array.isArray(date) ? date[0] : date;
+          setSelectedDate(resolvedDate);
           setError(null);
         }}
+        accentColor="rose"
       >
         <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
           {error && (
