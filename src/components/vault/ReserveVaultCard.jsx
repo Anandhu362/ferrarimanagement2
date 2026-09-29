@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import api from '../../config/api';
 
-// We explicitly restrict this component to track only the low-denomination float
+// Dynamic denomination tiers supported by the Reserve Vault
 const RESERVE_TIERS = [
+  { value: 1000, label: '1,000 AED', type: 'note' },
+  { value: 500, label: '500 AED', type: 'note' },
+  { value: 200, label: '200 AED', type: 'note' },
+  { value: 100, label: '100 AED', type: 'note' },
+  { value: 50, label: '50 AED', type: 'note' },
+  { value: 20, label: '20 AED', type: 'note' },
   { value: 10, label: '10 AED', type: 'note' },
   { value: 5, label: '5 AED', type: 'note' },
   { value: 1, label: 'Mixed Coins', type: 'coin' },
@@ -13,42 +21,73 @@ export default function ReserveVaultCard() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchReserveData = async () => {
-      try {
-        const activeBranch = localStorage.getItem('active_branch');
-        if (!activeBranch) return;
-        
-        // Fetch strictly from the new reserve collection route
-        const response = await api.get(`/api/vault/summary?branchId=${encodeURIComponent(activeBranch)}&vaultType=reserve`);
-        const result = response.data;
+  const fetchReserveData = useCallback(async () => {
+    try {
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) return;
+      
+      const response = await api.get(`/api/vault/summary?branchId=${encodeURIComponent(activeBranch)}&vaultType=reserve`);
+      const result = response.data;
 
-        if (result.success) {
-          let currentTotal = 0;
-          
-          // Map DB data specifically to our 3 reserve tiers
-          const mergedData = RESERVE_TIERS.map(tier => {
-            const dbMatch = result.data.find(row => parseFloat(row.denomination_value) === tier.value);
-            const qty = dbMatch ? parseInt(dbMatch.total_quantity) : 0;
-            const totalValue = qty * tier.value;
-            
-            currentTotal += totalValue;
+      if (result && result.success) {
+        let currentTotal = 0;
+        const mergedData = RESERVE_TIERS.map(tier => {
+          const dbMatch = result.data.find(row => parseFloat(row.denomination_value) === tier.value);
+          const qty = dbMatch ? parseInt(dbMatch.total_quantity, 10) : 0;
+          const totalValue = qty * tier.value;
+          currentTotal += totalValue;
+          return { ...tier, qty, totalValue };
+        });
 
-            return { ...tier, qty, totalValue };
-          });
-
-          setTotalBalance(currentTotal);
-          setVaultData(mergedData);
-        }
-      } catch (error) {
-        console.error("Error fetching reserve vault data:", error);
-      } finally {
-        setLoading(false);
+        setTotalBalance(currentTotal);
+        setVaultData(mergedData);
       }
-    };
-
-    fetchReserveData();
+    } catch (error) {
+      console.error("[ReserveVaultCard] Error fetching reserve vault data:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const activeBranch = localStorage.getItem('active_branch');
+    if (!activeBranch) return;
+
+    // Initial REST fetch
+    fetchReserveData();
+
+    // Real-Time Firestore Listener for Reserve Vault inventory
+    const reserveRef = collection(db, 'branches', activeBranch, 'reserve_vault_inventory');
+    const unsubscribe = onSnapshot(reserveRef, (snapshot) => {
+      let currentTotal = 0;
+      const dbRows = [];
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const denom = parseFloat(docSnap.id || data.denomination_value);
+        const qty = parseInt(data.quantity, 10) || 0;
+        if (qty > 0) {
+          dbRows.push({ denomination_value: denom, total_quantity: qty });
+        }
+      });
+
+      const mergedData = RESERVE_TIERS.map(tier => {
+        const dbMatch = dbRows.find(row => row.denomination_value === tier.value);
+        const qty = dbMatch ? dbMatch.total_quantity : 0;
+        const totalValue = qty * tier.value;
+        currentTotal += totalValue;
+        return { ...tier, qty, totalValue };
+      });
+
+      setTotalBalance(currentTotal);
+      setVaultData(mergedData);
+      setLoading(false);
+    }, (error) => {
+      console.error("[ReserveVaultCard] Realtime Reserve listener error:", error);
+    });
+
+    return () => unsubscribe();
+  }, [fetchReserveData]);
 
   if (loading) {
     return (

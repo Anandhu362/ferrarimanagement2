@@ -1,11 +1,12 @@
 // frontend/src/components/vault/ReserveReversalModal.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../../config/api';
 
 export default function ReserveReversalModal({ isOpen, onClose, logData, onSuccess }) {
   const [destination, setDestination] = useState('ceo'); // 'ceo' or 'manual'
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const isSubmittingRef = useRef(false);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -13,6 +14,7 @@ export default function ReserveReversalModal({ isOpen, onClose, logData, onSucce
       setDestination('ceo');
       setError('');
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   }, [isOpen]);
 
@@ -24,6 +26,8 @@ export default function ReserveReversalModal({ isOpen, onClose, logData, onSucce
   const originalAmount = parseFloat(logData?.amount || 0);
 
   const handleConfirmReversal = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setError('');
     setIsSubmitting(true);
     
@@ -33,13 +37,19 @@ export default function ReserveReversalModal({ isOpen, onClose, logData, onSucce
       if (!activeBranch) {
         setError('Active branch not found. Please refresh or select a branch.');
         setIsSubmitting(false);
+        isSubmittingRef.current = false;
         return;
       }
       
+      // Deterministic idempotency key tied directly to the original log document
+      const idempotencyKey = `REV-${logData.id}`;
+
       const response = await api.post('/api/reserve/reverse-inflow', {
         transactionId: logData.id,
         targetVault: destination,
-        branchId: activeBranch
+        branchId: activeBranch,
+        idempotencyKey,
+        clientTxId: idempotencyKey
       });
 
       if (response.data.success) {
@@ -51,6 +61,7 @@ export default function ReserveReversalModal({ isOpen, onClose, logData, onSucce
       setError(err.response?.data?.message || 'Failed to process the reversal. Please try again.');
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 

@@ -1,5 +1,7 @@
 // frontend/src/pages/vault/VaultOverview.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import api from '../../config/api'; // ✅ IMPORTING YOUR CENTRAL API
 import ReserveVaultCard from '../../components/vault/ReserveVaultCard'; // ✅ Imported Reserve Vault Component
 import ReserveLogsCard from '../../components/logs/cards/ReserveLogsCard'; // ✅ ADDED: Imported Reserve Logs Card
@@ -22,12 +24,12 @@ export default function VaultOverview() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // ✅ ADDED: Dedicated state for Reserve Vault activity logs
+  // Dedicated state for Reserve Vault activity logs
   const [reserveLogs, setReserveLogs] = useState([]);
   const [reserveLoading, setReserveLoading] = useState(true);
 
-  // ✅ ADDED: Fetch function for Reserve Logs
-  const fetchReserveLogs = async () => {
+  // Fetch function for Reserve Logs
+  const fetchReserveLogs = useCallback(async () => {
     setReserveLoading(true);
     try {
       const activeBranch = localStorage.getItem('active_branch');
@@ -35,55 +37,102 @@ export default function VaultOverview() {
       const reserveEndpoint = `/api/logs/reserve?branchId=${encodeURIComponent(activeBranch)}`;
       const response = await api.get(reserveEndpoint);
       
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         setReserveLogs(response.data.data);
       }
     } catch (error) {
-      console.error("Error fetching reserve logs:", error);
+      console.error("[VaultOverview] Error fetching reserve logs:", error);
     } finally {
       setReserveLoading(false);
     }
-  };
+  }, []);
+
+  // REST Fallback for CEO Vault data
+  const fetchVaultData = useCallback(async () => {
+    try {
+      const activeBranch = localStorage.getItem('active_branch');
+      if (!activeBranch) return;
+      
+      const response = await api.get(`/api/vault/summary?branchId=${encodeURIComponent(activeBranch)}&vaultType=ceo`);
+      const result = response.data;
+
+      if (result && result.success) {
+        let currentTotal = 0;
+        const mergedData = DENOMINATION_TIERS.map(tier => {
+          const dbMatch = result.data.find(row => parseFloat(row.denomination_value) === tier.value);
+          const qty = dbMatch ? parseInt(dbMatch.total_quantity, 10) : 0;
+          const totalValue = qty * tier.value;
+          currentTotal += totalValue;
+          return { ...tier, qty, totalValue };
+        });
+
+        setTotalBalance(currentTotal);
+        setVaultData(mergedData);
+      }
+    } catch (error) {
+      console.error("[VaultOverview] Error fetching vault data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Comprehensive Refresh Handler for child callbacks
+  const handleFullRefresh = useCallback(() => {
+    fetchVaultData();
+    fetchReserveLogs();
+  }, [fetchVaultData, fetchReserveLogs]);
 
   useEffect(() => {
-    const fetchVaultData = async () => {
-      try {
-        // Grab the active branch to ensure we don't fetch global sums
-        const activeBranch = localStorage.getItem('active_branch');
-        if (!activeBranch) return;
-        
-        // ✅ Fetches data from the CEO Vault table
-        const response = await api.get(`/api/vault/summary?branchId=${encodeURIComponent(activeBranch)}&vaultType=ceo`);
-        const result = response.data; // Axios automatically parses JSON
+    const activeBranch = localStorage.getItem('active_branch');
+    if (!activeBranch) return;
 
-        if (result.success) {
-          let currentTotal = 0;
-          
-          // Merge DB data with our baseline tiers
-          const mergedData = DENOMINATION_TIERS.map(tier => {
-            // Added parseFloat to ensure safe matching if BigQuery sends strings
-            const dbMatch = result.data.find(row => parseFloat(row.denomination_value) === tier.value);
-            const qty = dbMatch ? parseInt(dbMatch.total_quantity) : 0;
-            const totalValue = qty * tier.value;
-            
-            currentTotal += totalValue;
-
-            return { ...tier, qty, totalValue };
-          });
-
-          setTotalBalance(currentTotal);
-          setVaultData(mergedData);
-        }
-      } catch (error) {
-        console.error("Error fetching vault data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    // 1. Initial REST fetches
     fetchVaultData();
-    fetchReserveLogs(); // ✅ ADDED: Call the reserve logs fetch on mount
-  }, []);
+    fetchReserveLogs();
+
+    // 2. Real-Time Firestore Listener for CEO Vault physical stock
+    const vaultRef = collection(db, 'branches', activeBranch, 'vault_inventory');
+    const unsubVault = onSnapshot(vaultRef, (snapshot) => {
+      let currentTotal = 0;
+      const dbRows = [];
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const denom = parseFloat(docSnap.id || data.denomination_value);
+        const qty = parseInt(data.quantity, 10) || 0;
+        if (qty > 0) {
+          dbRows.push({ denomination_value: denom, total_quantity: qty });
+        }
+      });
+
+      const mergedData = DENOMINATION_TIERS.map(tier => {
+        const dbMatch = dbRows.find(row => row.denomination_value === tier.value);
+        const qty = dbMatch ? dbMatch.total_quantity : 0;
+        const totalValue = qty * tier.value;
+        currentTotal += totalValue;
+        return { ...tier, qty, totalValue };
+      });
+
+      setTotalBalance(currentTotal);
+      setVaultData(mergedData);
+      setLoading(false);
+    }, (error) => {
+      console.error("[VaultOverview] Realtime CEO Vault listener error:", error);
+    });
+
+    // 3. Real-Time Firestore Listener for Live Ledger (Reserve activity & reversals)
+    const ledgerRef = collection(db, 'branches', activeBranch, 'live_ledger');
+    const unsubLedger = onSnapshot(ledgerRef, () => {
+      fetchReserveLogs();
+    }, (error) => {
+      console.error("[VaultOverview] Realtime Live Ledger listener error:", error);
+    });
+
+    return () => {
+      unsubVault();
+      unsubLedger();
+    };
+  }, [fetchVaultData, fetchReserveLogs]);
 
   if (loading) {
     return (
@@ -231,7 +280,7 @@ export default function VaultOverview() {
         <ReserveLogsCard 
           logs={reserveLogs} 
           loading={reserveLoading} 
-          onRefresh={fetchReserveLogs}
+          onRefresh={handleFullRefresh}
         />
       </div>
 

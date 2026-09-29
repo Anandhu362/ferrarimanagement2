@@ -109,15 +109,15 @@ export default function ReserveLogsCard({ logs = [], loading = false, onRefresh 
                   {/* Status Pill & Actions */}
                   <div className="col-span-2 flex justify-end items-center gap-2">
                     
-                    {/* Action: Edit/Reverse Icon (Only visible on hover for active Additions) */}
+                    {/* Action: Reversal Icon - Always visible for active Additions for immediate analysis & execution */}
                     {isAdd && !isReversed && (
                       <button 
                         onClick={() => handleReverseClick(log)}
-                        className="text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 transform scale-95 hover:scale-100"
+                        className="text-indigo-600 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/70 p-1.5 rounded-lg transition-all duration-200 shadow-xs hover:scale-105 active:scale-95 flex items-center justify-center shrink-0"
                         title="Reverse Entry"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                         </svg>
                       </button>
                     )}
