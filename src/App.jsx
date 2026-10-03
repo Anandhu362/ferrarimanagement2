@@ -47,8 +47,18 @@ function App() {
   const { updateAvailable, versionData, applyUpdate } = useVersionControl();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          localStorage.setItem('firebase_token', token);
+        } catch (err) {
+          console.warn('[Auth State] Failed to sync ID token:', err.message);
+        }
+      } else {
+        localStorage.removeItem('firebase_token');
+      }
       setIsAuthLoading(false);
     });
     return () => unsubscribe();

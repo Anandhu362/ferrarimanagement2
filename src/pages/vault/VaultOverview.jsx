@@ -1,6 +1,6 @@
 // frontend/src/pages/vault/VaultOverview.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import api from '../../config/api'; // ✅ IMPORTING YOUR CENTRAL API
 import ReserveVaultCard from '../../components/vault/ReserveVaultCard'; // ✅ Imported Reserve Vault Component
@@ -121,8 +121,10 @@ export default function VaultOverview() {
     });
 
     // 3. Real-Time Firestore Listener for Live Ledger (Reserve activity & reversals)
+    // Constrained to the latest document to prevent unbounded collection reads
     const ledgerRef = collection(db, 'branches', activeBranch, 'live_ledger');
-    const unsubLedger = onSnapshot(ledgerRef, () => {
+    const qLatestLedger = query(ledgerRef, orderBy('timestamp', 'desc'), limit(1));
+    const unsubLedger = onSnapshot(qLatestLedger, () => {
       fetchReserveLogs();
     }, (error) => {
       console.error("[VaultOverview] Realtime Live Ledger listener error:", error);

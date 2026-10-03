@@ -22,6 +22,10 @@ export default function Login() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // ✅ Store the fresh Firebase ID token for authenticated API calls
+      const idToken = await user.getIdToken();
+      localStorage.setItem('firebase_token', idToken);
+
       // 2. Query the 'branches' collection where the email matches the logged-in user's email
       const branchesRef = collection(db, 'branches');
       const q = query(branchesRef, where('email', '==', user.email));

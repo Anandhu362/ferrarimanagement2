@@ -1,5 +1,5 @@
-// frontend/src/config/api.js
 import axios from 'axios';
+import { auth } from './firebase';
 
 // Create a central instance
 const api = axios.create({
@@ -11,11 +11,26 @@ const api = axios.create({
   },
 });
 
-// Optional but recommended: Add an interceptor if you are passing Firebase tokens to the backend
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('firebase_token'); 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// ✅ Interceptor: Dynamically retrieve and pass fresh Firebase ID tokens to the backend
+api.interceptors.request.use(async (config) => {
+  try {
+    let token = null;
+    if (auth && auth.currentUser) {
+      token = await auth.currentUser.getIdToken(/* forceRefresh */ false);
+      localStorage.setItem('firebase_token', token);
+    } else {
+      token = localStorage.getItem('firebase_token');
+    }
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (err) {
+    console.warn('[API Interceptor] Failed to retrieve fresh auth token:', err.message);
+    const cachedToken = localStorage.getItem('firebase_token');
+    if (cachedToken) {
+      config.headers.Authorization = `Bearer ${cachedToken}`;
+    }
   }
   return config;
 }, (error) => {
