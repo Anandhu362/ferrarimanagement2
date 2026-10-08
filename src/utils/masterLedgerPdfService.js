@@ -225,11 +225,13 @@ export const generateMasterLedgerPDF = ({
 
   // Date pill inside dark card
   doc.setFillColor(54, 48, 82);
+  const isLive = !!(ceoVaultSummary && ceoVaultSummary.isLiveSnapshot);
+  const pillText = isLive ? 'LIVE SAFE' : shortDateLabel;
   doc.roundedRect(c1X + cardWidth - 21, currentY + 2.5, 17, 4, 1.2, 1.2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(5.5);
   doc.setTextColor(241, 245, 249);
-  doc.text(shortDateLabel, c1X + cardWidth - 12.5, currentY + 5.2, { align: 'center' });
+  doc.text(pillText, c1X + cardWidth - 12.5, currentY + 5.2, { align: 'center' });
 
   // Large Balance
   doc.setFont('helvetica', 'normal');
@@ -242,13 +244,16 @@ export const generateMasterLedgerPDF = ({
   doc.setTextColor(255, 255, 255);
   doc.text(formatPdfCurrency(closingBalance), c1X + 11.5, currentY + 15);
 
-  // Subtext pill with clean padding (Live Data Connected removed)
+  // Subtext pill with clean padding
   doc.setFillColor(30, 27, 46);
   doc.roundedRect(c1X + 4, currentY + 21, cardWidth - 8, 5, 1.5, 1.5, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(5.5);
   doc.setTextColor(165, 180, 252);
-  doc.text(`CLO: AED ${formatPdfCurrency(closingBalance)}  |  Res: AED ${formatPdfCurrency(reserveBalance)}`, c1X + cardWidth / 2, currentY + 24.2, { align: 'center' });
+  doc.text(isLive 
+    ? `PHYSICAL SAFE SNAPSHOT  |  AED ${formatPdfCurrency(closingBalance)}` 
+    : `CLO: AED ${formatPdfCurrency(closingBalance)}  |  Res: AED ${formatPdfCurrency(reserveBalance)}`, 
+    c1X + cardWidth / 2, currentY + 24.2, { align: 'center' });
 
   // 2. Card 2: TOTAL INFLOW (Mint Green)
   const c2X = c1X + cardWidth + cardGap;
@@ -461,11 +466,11 @@ export const generateMasterLedgerPDF = ({
 
   // Closing Safe Pill
   doc.setFillColor(241, 245, 249);
-  doc.roundedRect(rightX + 52, currentY + 3.5, 22, 4, 1.2, 1.2, 'F');
+  doc.roundedRect(rightX + 52, currentY + 3.5, 28, 4, 1.2, 1.2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(5.5);
   doc.setTextColor(71, 85, 105);
-  doc.text('CLOSING SAFE', rightX + 63, currentY + 6.3, { align: 'center' });
+  doc.text(isLive ? 'LIVE SAFE SNAPSHOT' : 'CLOSING SAFE', rightX + 66, currentY + 6.3, { align: 'center' });
 
   // Lock indicator icon text
   doc.setFillColor(248, 250, 252);
@@ -480,7 +485,7 @@ export const generateMasterLedgerPDF = ({
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Physical note distribution as of ${shortDateLabel}`, rightX + 8.5, currentY + 11.2);
+  doc.text(isLive ? `Live physical safe distribution (Export: ${generationTimestamp})` : `Physical note distribution as of ${shortDateLabel}`, rightX + 8.5, currentY + 11.2);
 
   // Build CEO Vault Denomination Table Rows
   const standardDenoms = ['1000', '500', '200', '100', '50', '20', '10', '5', '1', '0.5'];
@@ -585,7 +590,7 @@ export const generateMasterLedgerPDF = ({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(15, 23, 42);
-  doc.text(`AED ${formatPdfCurrency(closingBalance)}`, rightX + rightDenomWidth - 5, currentY + denomBoxHeight - 3.5, { align: 'right' });
+  doc.text(`AED ${formatPdfCurrency(totalCeoSafe > 0 ? totalCeoSafe : closingBalance)}`, rightX + rightDenomWidth - 5, currentY + denomBoxHeight - 3.5, { align: 'right' });
 
   // ----------------------------------------------------
   // SECTION 3: CATEGORIZED TRANSACTION TABLES (SCREENSHOT 3)
