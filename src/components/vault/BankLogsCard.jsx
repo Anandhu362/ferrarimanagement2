@@ -87,8 +87,8 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
       const response = await api.put(`/api/vault/logs/${safeBranch}/${safeLogId}`, {
         newAmount: updatedData.newAmount,
         newDate: updatedData.newDate,
-        // ✅ Transmit the selected transaction type (CREDIT / DEBIT) to the backend
-        newType: updatedData.newType 
+        newType: updatedData.newType,
+        deltaDenominations: updatedData.deltaDenominations || null
       });
 
       if (response.data.success) {
@@ -105,7 +105,8 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
       }
     } catch (error) {
       console.error("Error updating bank log:", error);
-      alert(`Update Failed: ${error.message}`);
+      const errMsg = error.response?.data?.message || error.message || "Failed to update transaction.";
+      alert(`Update Failed: ${errMsg}`);
     }
   };
 

@@ -101,77 +101,74 @@ export default function BankVaultOverview() {
       </div>
 
       {/* Main Content Area - Split Grid Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 xl:gap-8">
         
         {/* LEFT COLUMN: Balance, Rules, and Manual Form */}
-        <div className="xl:col-span-5 space-y-8">
+        <div className="xl:col-span-5 space-y-5 lg:space-y-6">
           
-          {/* Main Balance Card */}
-          <div className={`bg-brand-dark rounded-[2rem] p-8 text-white relative overflow-hidden shadow-xl flex flex-col justify-center transition-all duration-500 ${snapshotData ? 'min-h-[380px]' : 'min-h-[280px]'}`}>
+          {/* Main Balance Card - Optimized for Laptop Screens */}
+          <div className={`bg-brand-dark rounded-[1.75rem] lg:rounded-[2rem] p-6 lg:p-7 xl:p-8 text-white relative overflow-hidden shadow-xl flex flex-col justify-center transition-all duration-500 ${snapshotData ? 'min-h-[320px]' : 'min-h-[220px] lg:min-h-[240px]'}`}>
             <div className="absolute -right-12 -top-12 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
             
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
-                <p className="text-white/60 text-xs font-semibold mb-2 tracking-widest uppercase">Total Banked Balance</p>
-                <h3 className="text-4xl lg:text-5xl font-semibold tracking-tighter">
-                  <span className="text-2xl text-white/50 font-light mr-2">AED</span>
+                <p className="text-white/60 text-xs font-semibold mb-1.5 tracking-widest uppercase">Total Banked Balance</p>
+                <h3 className="text-3xl lg:text-4xl xl:text-5xl font-semibold tracking-tighter">
+                  <span className="text-xl lg:text-2xl text-white/50 font-light mr-2">AED</span>
                   {totalBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}
                 </h3>
               </div>
               
               {snapshotData && selectedDate && (
-                <div className="mt-8 p-5 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-inner">
-                  <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="mt-5 p-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-inner">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <p className="text-white/80 text-[11px] font-semibold uppercase tracking-widest">
+                    <p className="text-white/80 text-[10px] font-semibold uppercase tracking-widest">
                       Closing Balance: {new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
                   
-                  <div className="flex justify-between items-end border-b border-white/10 pb-4 mb-4">
-                    <h4 className="text-2xl font-medium text-white tracking-tight">
-                      <span className="text-sm text-white/50 font-light mr-1">AED</span>
+                  <div className="flex justify-between items-end border-b border-white/10 pb-3 mb-3">
+                    <h4 className="text-xl lg:text-2xl font-medium text-white tracking-tight">
+                      <span className="text-xs lg:text-sm text-white/50 font-light mr-1">AED</span>
                       {parseFloat(snapshotData.closingBalance).toLocaleString(undefined, {minimumFractionDigits: 2})}
                     </h4>
                   </div>
 
-                  <div className="flex gap-4">
-                    <div className="flex-1 bg-emerald-500/10 px-3 py-2 rounded-xl border border-emerald-500/20 flex flex-col justify-center">
-                      <p className="text-emerald-400/80 text-[10px] uppercase tracking-wider mb-1 font-semibold flex items-center gap-1">
-                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                  <div className="flex gap-3">
+                    <div className="flex-1 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 flex flex-col justify-center">
+                      <p className="text-emerald-400/80 text-[9px] uppercase tracking-wider mb-0.5 font-semibold flex items-center gap-1">
+                         <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                          Inflow
                       </p>
-                      <p className="text-emerald-300 text-sm font-bold tracking-tight">+{parseFloat(snapshotData.dayInflow).toLocaleString()}</p>
+                      <p className="text-emerald-300 text-xs sm:text-sm font-bold tracking-tight">+{parseFloat(snapshotData.dayInflow).toLocaleString()}</p>
                     </div>
-                    <div className="flex-1 bg-rose-500/10 px-3 py-2 rounded-xl border border-rose-500/20 flex flex-col justify-center">
-                      <p className="text-rose-400/80 text-[10px] uppercase tracking-wider mb-1 font-semibold flex items-center gap-1">
-                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                    <div className="flex-1 bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20 flex flex-col justify-center">
+                      <p className="text-rose-400/80 text-[9px] uppercase tracking-wider mb-0.5 font-semibold flex items-center gap-1">
+                         <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
                          Outflow
                       </p>
-                      <p className="text-rose-300 text-sm font-bold tracking-tight">-{parseFloat(snapshotData.dayOutflow).toLocaleString()}</p>
+                      <p className="text-rose-300 text-xs sm:text-sm font-bold tracking-tight">-{parseFloat(snapshotData.dayOutflow).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="pt-6 mt-6 border-t border-white/10 flex justify-between items-center text-sm">
+              <div className="pt-4 mt-4 border-t border-white/10 flex justify-between items-center text-xs lg:text-sm">
                 <span className="text-white/60 font-light">Last Reconciliation</span>
                 <span className="font-medium text-white">Today, 09:00 AM</span>
               </div>
             </div>
           </div>
 
-          {/* Rules Card */}
-          <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col justify-center">
-            <h4 className="text-sm font-semibold text-slate-900 mb-6">Bank Tracking Rules</h4>
-            <ul className="space-y-4 text-sm">
-              <li className="flex gap-3 text-slate-600">
-                <svg className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                <span className="leading-relaxed font-light">This vault tracks physical deposits explicitly marked as Bank Deposits in the ledger, plus manual bank adjustments.</span>
-              </li>
-            </ul>
+          {/* Compact Rules Indicator for Laptop Space Efficiency */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-slate-100/90 shadow-sm flex items-center gap-2.5 text-xs text-slate-500">
+            <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="leading-snug font-light">Tracks physical CEO safe deposits in ledger plus manual adjustments.</span>
           </div>
 
           {/* Manual Bank Transaction Form */}
