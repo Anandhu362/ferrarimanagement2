@@ -12,12 +12,14 @@ const CATEGORIES = [
 
 const VAULT_OPTIONS = [
   { value: 'accountant', label: 'Accountant Vault' },
-  { value: 'ceo', label: 'CEO Vault' }
+  { value: 'ceo', label: 'CEO Vault' },
+  { value: 'petty', label: 'Petty Cash Vault' }
 ];
 
 const formatDateForDisplay = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return String(dateString);
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
@@ -27,12 +29,18 @@ export default function ExpenseDetailsInput({
   onDateChange, 
   onCategoryChange, 
   onVaultChange, // Add prop to handle vault selection
+  activeAllocations = [],
+  onAllocationSelect,
+  isLoadingAllocations = false,
   onKeyDown 
 }) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState(new Date(expenseData.date || new Date()));
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isVaultDropdownOpen, setIsVaultDropdownOpen] = useState(false); // State for new dropdown
+  const [isAllocationDropdownOpen, setIsAllocationDropdownOpen] = useState(false);
+
+  const selectedAllocation = activeAllocations.find(a => a.id === expenseData.allocationId);
 
   const handleDateSelect = (year, month, day) => {
     const m = String(month + 1).padStart(2, '0');
@@ -47,8 +55,9 @@ export default function ExpenseDetailsInput({
   };
 
   const handleVaultSelect = (vaultValue) => {
-    onVaultChange(vaultValue);
+    setIsAllocationDropdownOpen(false);
     setIsVaultDropdownOpen(false);
+    onVaultChange(vaultValue);
   };
 
   return (
@@ -56,12 +65,13 @@ export default function ExpenseDetailsInput({
       <h3 className="text-lg font-semibold text-slate-900 tracking-tight mb-6">Expense Details</h3>
       <div className="space-y-6">
 
-        {/* --- NEW: CUSTOM VAULT DROPDOWN --- */}
+        {/* --- CUSTOM VAULT DROPDOWN --- */}
         <div className="space-y-2 relative">
           <label className="block text-sm font-medium text-slate-700">From Vault *</label>
           <div 
             onClick={() => { 
               setIsVaultDropdownOpen(!isVaultDropdownOpen); 
+              setIsAllocationDropdownOpen(false);
               setIsCalendarOpen(false); 
               setIsCategoryOpen(false); 
             }}
@@ -109,6 +119,105 @@ export default function ExpenseDetailsInput({
             </>
           )}
         </div>
+
+        {/* --- PETTY CASH TOP-UP ALLOCATION DROPDOWN --- */}
+        {expenseData.vaultType === 'petty' && (
+          <div className="space-y-2 relative animate-in fade-in duration-300">
+            <div className="flex justify-between items-center">
+              <label className="block text-sm font-medium text-slate-700">Select Petty Cash Top-Up *</label>
+              {isLoadingAllocations && (
+                <span className="text-[11px] text-slate-400 animate-pulse font-medium">Loading...</span>
+              )}
+            </div>
+
+            <div 
+              onClick={() => { 
+                setIsAllocationDropdownOpen(!isAllocationDropdownOpen); 
+                setIsVaultDropdownOpen(false);
+                setIsCalendarOpen(false); 
+                setIsCategoryOpen(false); 
+              }}
+              className="w-full px-4 py-3 bg-[#FCFCFD] border border-slate-200 rounded-xl text-slate-900 cursor-pointer flex justify-between items-center hover:border-brand-light/50 focus:ring-2 focus:ring-brand-light/10 transition-all"
+            >
+              <div className="truncate pr-2">
+                {selectedAllocation ? (
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-900 text-sm truncate">{selectedAllocation.description}</span>
+                    <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                      AED {parseFloat(selectedAllocation.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-slate-400 text-sm font-light">Select active petty cash advance</span>
+                )}
+              </div>
+              <svg 
+                className={`w-4 h-4 shrink-0 transition-transform duration-300 ${isAllocationDropdownOpen ? 'rotate-180 text-brand-dark' : 'text-slate-400'}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            {isAllocationDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsAllocationDropdownOpen(false)}></div>
+                <div className="absolute top-[calc(100%+8px)] left-0 w-full p-2 bg-white rounded-[1.25rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-100/80 z-50 max-h-64 overflow-y-auto animate-in slide-in-from-top-2 fade-in duration-200">
+                  {activeAllocations.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-400">
+                      No active petty cash advances found. Please top up petty cash first.
+                    </div>
+                  ) : (
+                    activeAllocations.map((alloc) => (
+                      <button
+                        key={alloc.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAllocationSelect && onAllocationSelect(alloc);
+                          setIsAllocationDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-between gap-2 mb-1 last:mb-0 ${
+                          expenseData.allocationId === alloc.id
+                            ? 'bg-slate-50 text-slate-900 border border-slate-200/80'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <div className="truncate">
+                          <div className="font-semibold text-slate-900 text-xs truncate">{alloc.description}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {formatDateForDisplay(alloc.date || alloc.createdAt)} &bull; Source: {alloc.vaultSource || 'CEO Vault'}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-800">
+                            AED {parseFloat(alloc.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
+                          {expenseData.allocationId === alloc.id && (
+                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            {selectedAllocation && (
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+                <span className="text-slate-500 font-medium">Advance Amount:</span>
+                <span className="font-bold text-slate-900">
+                  AED {parseFloat(selectedAllocation.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* --- EXISTING CALENDAR INPUT --- */}
         <div className="space-y-2 relative">
@@ -231,7 +340,20 @@ export default function ExpenseDetailsInput({
         </div>
 
         <div className="space-y-2 pt-2">
-          <label className="block text-sm font-medium text-slate-700">Total Bill Amount *</label>
+          <div className="flex justify-between items-center">
+            <label className="block text-sm font-medium text-slate-700">
+              {expenseData.vaultType === 'petty' ? 'Expense Bill Amount *' : 'Total Bill Amount *'}
+            </label>
+            {expenseData.vaultType === 'petty' && selectedAllocation && (
+              <span className={`text-[11px] font-medium ${
+                parseFloat(expenseData.totalAmount || 0) > parseFloat(selectedAllocation.amount || 0)
+                  ? 'text-rose-500 font-bold'
+                  : 'text-slate-400'
+              }`}>
+                Max: AED {parseFloat(selectedAllocation.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+            )}
+          </div>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">AED</span>
             <input 
@@ -241,9 +363,18 @@ export default function ExpenseDetailsInput({
               onChange={onFormChange} 
               onKeyDown={onKeyDown} 
               placeholder="0.00" 
-              className="w-full pl-14 pr-4 py-3 bg-[#FCFCFD] border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-brand-light focus:ring-2 focus:ring-brand-light/10 transition-all text-lg" 
+              className={`w-full pl-14 pr-4 py-3 bg-[#FCFCFD] border rounded-xl font-semibold focus:outline-none transition-all text-lg ${
+                expenseData.vaultType === 'petty' && selectedAllocation && parseFloat(expenseData.totalAmount || 0) > parseFloat(selectedAllocation.amount || 0)
+                  ? 'border-rose-300 text-rose-600 bg-rose-50'
+                  : 'border-slate-200 text-slate-900 focus:border-brand-light focus:ring-2 focus:ring-brand-light/10'
+              }`} 
             />
           </div>
+          {expenseData.vaultType === 'petty' && selectedAllocation && parseFloat(expenseData.totalAmount || 0) > parseFloat(selectedAllocation.amount || 0) && (
+            <p className="text-xs text-rose-500 font-medium">
+              Expense bill cannot exceed the allocated advance amount (AED {parseFloat(selectedAllocation.amount || 0).toFixed(2)}).
+            </p>
+          )}
         </div>
       </div>
     </div>
