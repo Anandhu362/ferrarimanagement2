@@ -15,6 +15,7 @@ const DENOMINATION_TIERS = [
   { value: 10, label: '10 AED', type: 'note' },
   { value: 5, label: '5 AED', type: 'note' },
   { value: 1, label: 'Mixed Coins', type: 'coin' },
+  { value: 0.5, label: '0.50 AED', type: 'coin' },
 ];
 
 export default function AccountantVault() {
@@ -50,7 +51,7 @@ export default function AccountantVault() {
 
       // Map the live data onto your standard UI tiers
       const mergedData = DENOMINATION_TIERS.map(tier => {
-        const dbMatch = liveDocs.find(row => parseFloat(row.denomination_value) === tier.value);
+        const dbMatch = liveDocs.find(row => Math.abs(parseFloat(row.denomination_value) - tier.value) < 0.001);
         const qty = dbMatch ? parseInt(dbMatch.quantity) : 0;
         const totalValue = qty * tier.value;
         

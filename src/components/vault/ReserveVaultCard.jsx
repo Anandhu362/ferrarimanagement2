@@ -14,6 +14,7 @@ const RESERVE_TIERS = [
   { value: 10, label: '10 AED', type: 'note' },
   { value: 5, label: '5 AED', type: 'note' },
   { value: 1, label: 'Mixed Coins', type: 'coin' },
+  { value: 0.5, label: '0.50 AED', type: 'coin' },
 ];
 
 export default function ReserveVaultCard() {
@@ -32,7 +33,7 @@ export default function ReserveVaultCard() {
       if (result && result.success) {
         let currentTotal = 0;
         const mergedData = RESERVE_TIERS.map(tier => {
-          const dbMatch = result.data.find(row => parseFloat(row.denomination_value) === tier.value);
+          const dbMatch = result.data.find(row => Math.abs(parseFloat(row.denomination_value) - tier.value) < 0.001);
           const qty = dbMatch ? parseInt(dbMatch.total_quantity, 10) : 0;
           const totalValue = qty * tier.value;
           currentTotal += totalValue;
@@ -72,7 +73,7 @@ export default function ReserveVaultCard() {
       });
 
       const mergedData = RESERVE_TIERS.map(tier => {
-        const dbMatch = dbRows.find(row => row.denomination_value === tier.value);
+        const dbMatch = dbRows.find(row => Math.abs(row.denomination_value - tier.value) < 0.001);
         const qty = dbMatch ? dbMatch.total_quantity : 0;
         const totalValue = qty * tier.value;
         currentTotal += totalValue;

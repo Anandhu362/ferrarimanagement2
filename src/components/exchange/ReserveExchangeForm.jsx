@@ -11,7 +11,8 @@ const RESERVE_TIERS = [
   { value: 20, label: '20', type: 'note' },
   { value: 10, label: '10', type: 'note' },
   { value: 5, label: '5', type: 'note' },
-  { value: 1, label: '1', type: 'coin' }
+  { value: 1, label: '1', type: 'coin' },
+  { value: 0.5, label: '0.50', type: 'coin' },
 ];
 
 const VAULT_OPTIONS = [
@@ -20,9 +21,9 @@ const VAULT_OPTIONS = [
 ];
 
 const FILTER_OPTIONS = [
-  { key: 'ALL', label: 'All Notes' },
+  { key: 'ALL', label: 'All Notes & Coins' },
   { key: 'HIGH', label: '1000 - 100' },
-  { key: 'LOW', label: '50 - 1' },
+  { key: 'LOW', label: '50 - 0.50' },
   { key: 'IN_STOCK', label: 'In Stock' }
 ];
 
