@@ -1,13 +1,32 @@
 // frontend/src/components/logs/cards/PettyCashLogsCard.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 
-export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore, hasMore, onLoadMore, isExpanded, onExpand }) {
+export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore, hasMore, onLoadMore, onSearch, isExpanded, onExpand }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
+  const debounceTimer = useRef(null);
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false);
+
+  // Handle debounced search changes triggering server search
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if (onSearch) {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(() => {
+        onSearch(val);
+      }, 350);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
 
   // Handle infinite scroll on bottom threshold
   const handleScroll = (e) => {
@@ -80,26 +99,46 @@ export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore,
   const formatTrxDate = (dateVal) => {
     if (!dateVal) return '--:--';
     try {
-      let dateStr = typeof dateVal === 'object' && dateVal.value ? dateVal.value : String(dateVal);
-      dateStr = dateStr.replace(' ', 'T');
-      const dateObj = new Date(dateStr);
-      if (isNaN(dateObj.getTime())) return 'Invalid Date';
+      let dateObj;
+      if (typeof dateVal?.toDate === 'function') {
+        dateObj = dateVal.toDate();
+      } else if (dateVal._seconds) {
+        dateObj = new Date(dateVal._seconds * 1000);
+      } else if (dateVal.seconds) {
+        dateObj = new Date(dateVal.seconds * 1000);
+      } else if (typeof dateVal === 'object' && dateVal.value) {
+        dateObj = new Date(String(dateVal.value).replace(' ', 'T'));
+      } else {
+        let dateStr = String(dateVal).replace(' ', 'T');
+        dateObj = new Date(dateStr);
+      }
+      if (isNaN(dateObj.getTime())) return '--:--';
       
       return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' - ' + 
              dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch (error) {
-      return 'Invalid Date';
+      return '--:--';
     }
   };
 
   const getTrxColors = (type) => {
+    if (type === 'RESERVE_ADD') {
+      return { dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]', text: 'text-emerald-600', prefix: '+ ' };
+    }
+    if (type === 'RESERVE_TAKE' || type === 'RESERVE_REVERSAL') {
+      return { dot: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]', text: 'text-rose-600', prefix: '- ' };
+    }
+    if (type === 'TRANSFER') {
+      return { dot: 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]', text: 'text-blue-600', prefix: '→ ' };
+    }
     return { dot: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]', text: 'text-amber-600', prefix: '- ' };
   };
 
   const getStatusBadge = (status) => {
     if (status === 'SYSTEM') return 'bg-blue-50 text-blue-500 border-blue-200/50';
     if (status === 'PENDING CEO') return 'bg-purple-50 text-purple-600 border-purple-200/50';
-    if (status === 'VERIFIED') return 'bg-emerald-50 text-emerald-600 border-emerald-200/50';
+    if (status === 'VERIFIED' || status === 'COMPLETED') return 'bg-emerald-50 text-emerald-600 border-emerald-200/50';
+    if (status === 'REVERSED') return 'bg-rose-50 text-rose-600 border-rose-200/50';
     return 'bg-slate-50 text-slate-500 border-slate-200/50';
   };
 
@@ -117,8 +156,8 @@ export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore,
             </svg>
           </div>
           <div>
-            <h3 className="text-white font-bold text-lg tracking-wide uppercase">Petty Cash</h3>
-            <p className="text-amber-100 text-xs font-medium">Daily miscellaneous expenses</p>
+            <h3 className="text-white font-bold text-lg tracking-wide uppercase">Petty Cash & Reserve</h3>
+            <p className="text-amber-100 text-xs font-medium">Daily miscellaneous & reserve operations</p>
           </div>
         </div>
 
@@ -132,7 +171,7 @@ export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore,
                 type="text"
                 placeholder="Search description or amount..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="bg-white/20 text-white placeholder:text-white/70 border border-white/20 rounded-full pl-4 pr-9 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-white/50 w-40 sm:w-64 transition-all backdrop-blur-sm"
               />
               <svg className="w-3.5 h-3.5 text-white/80 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,7 +231,7 @@ export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore,
                       <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span>{searchQuery ? 'No matching records found.' : 'No petty cash records found for this period.'}</span>
+                      <span>{searchQuery ? 'No matching records found.' : 'No petty cash or reserve records found for this period.'}</span>
                     </div>
                   </td>
                 </tr>
@@ -247,6 +286,22 @@ export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore,
                       </tr>
                     );
                   })}
+
+                  {hasMore && !loadingMore && filteredData.length < 5 && (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-4 text-center bg-amber-50/20">
+                        <button
+                          onClick={onLoadMore}
+                          className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-semibold text-amber-600 bg-white hover:bg-amber-50 border border-amber-200 rounded-xl transition-all shadow-sm"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                          Load More Records
+                        </button>
+                      </td>
+                    </tr>
+                  )}
 
                   {loadingMore && (
                     <tr>

@@ -155,17 +155,22 @@ export default function GroupEntry() {
         return; 
       }
 
+      const validInvoices = invoices
+        .filter(i => isValidString(i.companyName) && parseFloat(i.amount) > 0)
+        .map(i => ({
+          ...i,
+          invoiceNo: i.invoiceNo && i.invoiceNo.trim() !== '' ? i.invoiceNo.trim() : 'NIL'
+        }));
+      const validExpenses = showExpenses ? expenses.filter(e => e.description && parseFloat(e.amount) > 0) : [];
+      const idempotencyKey = (validInvoices[0]?.id) || (validExpenses[0]?.id) || `GRP-${Date.now()}`;
+
       const payload = {
         branchId: activeBranch,
         date: batchDate, 
-        // Filter out completely empty rows, but allow rows with amount + companyName. If no invoiceNo, default to 'NIL'
-        invoices: invoices
-          .filter(i => isValidString(i.companyName) && parseFloat(i.amount) > 0)
-          .map(i => ({
-            ...i,
-            invoiceNo: i.invoiceNo && i.invoiceNo.trim() !== '' ? i.invoiceNo.trim() : 'NIL'
-          })),
-        expenses: showExpenses ? expenses.filter(e => e.description && parseFloat(e.amount) > 0) : [],
+        idempotencyKey,
+        clientTxId: idempotencyKey,
+        invoices: validInvoices,
+        expenses: validExpenses,
         denominations,
         netTotal: totals.net
       };

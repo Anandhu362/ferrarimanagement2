@@ -23,6 +23,14 @@ export default function LogsPage() {
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
 
+  // Dedicated Category & Search State for Expanded Card
+  const [expandedLogs, setExpandedLogs] = useState([]);
+  const [expandedLoading, setExpandedLoading] = useState(false);
+  const [expandedLoadingMore, setExpandedLoadingMore] = useState(false);
+  const [expandedNextCursor, setExpandedNextCursor] = useState(null);
+  const [expandedHasMore, setExpandedHasMore] = useState(false);
+  const [expandedSearchQuery, setExpandedSearchQuery] = useState('');
+
   const [branchError, setBranchError] = useState(false); 
   const navigate = useNavigate();
   
@@ -53,6 +61,68 @@ export default function LogsPage() {
       return dateB - dateA; 
     });
   };
+
+  // Map expanded card name to Firestore transaction type
+  const getCategoryType = (cardName) => {
+    switch (cardName) {
+      case 'inflows': return 'INFLOW';
+      case 'expenses': return 'OUTFLOW';
+      case 'transfers': return 'TRANSFER';
+      case 'pettyCash': return 'PETTY_CASH';
+      default: return null;
+    }
+  };
+
+  // Fetch category-isolated logs for the expanded card with optional search and cursor pagination
+  const fetchExpandedLogs = useCallback(async (cardName, query = '', cursor = null, append = false) => {
+    const activeBranch = localStorage.getItem('active_branch');
+    if (!activeBranch || !cardName) return;
+
+    const catType = getCategoryType(cardName);
+    if (!catType) return;
+
+    if (append) {
+      setExpandedLoadingMore(true);
+    } else {
+      setExpandedLoading(true);
+      if (!cursor) setExpandedNextCursor(null);
+    }
+
+    try {
+      let endpoint = `/api/logs/all?branchId=${encodeURIComponent(activeBranch)}&type=${encodeURIComponent(catType)}&limit=30`;
+      if (query && query.trim().length >= 2) {
+        endpoint += `&search=${encodeURIComponent(query.trim())}`;
+      }
+      if (cursor) {
+        endpoint += `&cursor=${encodeURIComponent(cursor)}`;
+      }
+
+      const res = await api.get(endpoint);
+      if (res.data.success) {
+        const rows = sortLogsList(res.data.data || []);
+        if (append) {
+          setExpandedLogs(prev => {
+            const combined = [...prev, ...rows];
+            const seen = new Set();
+            return sortLogsList(combined.filter(item => {
+              if (!item.id || seen.has(item.id)) return false;
+              seen.add(item.id);
+              return true;
+            }));
+          });
+        } else {
+          setExpandedLogs(rows);
+        }
+        setExpandedNextCursor(res.data.nextCursor || null);
+        setExpandedHasMore(!!res.data.hasMore);
+      }
+    } catch (err) {
+      console.error('Error fetching expanded category logs:', err);
+    } finally {
+      setExpandedLoading(false);
+      setExpandedLoadingMore(false);
+    }
+  }, []);
 
   // Initial / Refresh fetch
   const fetchLogs = async (datesToFetch = selectedDates) => {
@@ -88,6 +158,11 @@ export default function LogsPage() {
         } else {
           setCeoVaultSummary(null);
         }
+
+        // Also refresh expanded card if open
+        if (expandedCard && (!datesToFetch || datesToFetch.length === 0)) {
+          fetchExpandedLogs(expandedCard, expandedSearchQuery);
+        }
       }
 
     } catch (error) {
@@ -97,7 +172,7 @@ export default function LogsPage() {
     }
   };
 
-  // Cursor-based Load More function for infinite scroll
+  // Cursor-based Load More function for infinite scroll (Overview Grid)
   const handleLoadMore = useCallback(async () => {
     if (loading || loadingMore || !hasMore || !nextCursor || (selectedDates && selectedDates.length > 0)) {
       return;
@@ -132,6 +207,22 @@ export default function LogsPage() {
     }
   }, [loading, loadingMore, hasMore, nextCursor, selectedDates]);
 
+  // Handle server-side search when a card is expanded
+  const handleExpandedSearch = useCallback((query) => {
+    setExpandedSearchQuery(query);
+    if (!selectedDates || selectedDates.length === 0) {
+      fetchExpandedLogs(expandedCard, query);
+    }
+  }, [expandedCard, selectedDates, fetchExpandedLogs]);
+
+  // Handle load more for the expanded card
+  const handleExpandedLoadMore = useCallback(() => {
+    if (expandedLoading || expandedLoadingMore || !expandedHasMore || !expandedNextCursor) {
+      return;
+    }
+    fetchExpandedLogs(expandedCard, expandedSearchQuery, expandedNextCursor, true);
+  }, [expandedLoading, expandedLoadingMore, expandedHasMore, expandedNextCursor, expandedCard, expandedSearchQuery, fetchExpandedLogs]);
+
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,16 +236,36 @@ export default function LogsPage() {
   const handleExpandToggle = (cardName) => {
     if (expandedCard === cardName) {
       setExpandedCard(null); 
+      setExpandedLogs([]);
+      setExpandedSearchQuery('');
+      setExpandedNextCursor(null);
+      setExpandedHasMore(false);
     } else {
       setExpandedCard(cardName); 
+      setExpandedSearchQuery('');
+      if (!selectedDates || selectedDates.length === 0) {
+        fetchExpandedLogs(cardName, '');
+      }
     }
   };
 
-  // --- Data Filtering Logic ---
-  const inflows = logs.filter(t => t.type === 'INFLOW' || t.type === 'TEMP_INFLOW');
+  // --- Data Filtering Logic (Strict Category Isolation) ---
+  const isPettyOrReserve = (t) => {
+    if (!t) return false;
+    const type = t.type || '';
+    if (['PETTY_CASH', 'RESERVE_ADD', 'RESERVE_TAKE', 'RESERVE_REVERSAL'].includes(type)) return true;
+    const id = String(t.id || '');
+    if (id.startsWith('PC-') || id.startsWith('RES-')) return true;
+    const desc = String(t.description || '');
+    if (desc.includes('Petty Cash') || desc.includes('Reserve Vault')) return true;
+    if (t.allocationId) return true;
+    return false;
+  };
+
+  const inflows = logs.filter(t => !isPettyOrReserve(t) && (t.type === 'INFLOW' || t.type === 'TEMP_INFLOW'));
   const expenses = logs.filter(t => t.type === 'OUTFLOW' || t.type === 'EXPENSE');
-  const transfers = logs.filter(t => t.type === 'TRANSFER' || t.type === 'EXCHANGE');
-  const pettyCash = logs.filter(t => t.type === 'PETTY_CASH');
+  const transfers = logs.filter(t => !isPettyOrReserve(t) && (t.type === 'TRANSFER' || t.type === 'EXCHANGE'));
+  const pettyCash = logs.filter(t => isPettyOrReserve(t));
 
   // Branch Error UI Block
   if (branchError) {
@@ -284,11 +395,12 @@ export default function LogsPage() {
 
           {(!expandedCard || expandedCard === 'inflows') && (
             <InflowLogsCard 
-              inflowsData={inflows} 
-              loading={loading} 
-              loadingMore={loadingMore}
-              hasMore={hasMore}
-              onLoadMore={handleLoadMore}
+              inflowsData={expandedCard === 'inflows' && (!selectedDates || selectedDates.length === 0) ? expandedLogs : inflows} 
+              loading={expandedCard === 'inflows' ? expandedLoading : loading} 
+              loadingMore={expandedCard === 'inflows' ? expandedLoadingMore : loadingMore}
+              hasMore={expandedCard === 'inflows' ? expandedHasMore : hasMore}
+              onLoadMore={expandedCard === 'inflows' ? handleExpandedLoadMore : handleLoadMore}
+              onSearch={expandedCard === 'inflows' ? handleExpandedSearch : null}
               isExpanded={expandedCard === 'inflows'}
               onExpand={() => handleExpandToggle('inflows')} 
               onRefresh={fetchLogs} 
@@ -297,11 +409,12 @@ export default function LogsPage() {
 
           {(!expandedCard || expandedCard === 'expenses') && (
             <ExpenseLogsCard 
-              expensesData={expenses} 
-              loading={loading} 
-              loadingMore={loadingMore}
-              hasMore={hasMore}
-              onLoadMore={handleLoadMore}
+              expensesData={expandedCard === 'expenses' && (!selectedDates || selectedDates.length === 0) ? expandedLogs : expenses} 
+              loading={expandedCard === 'expenses' ? expandedLoading : loading} 
+              loadingMore={expandedCard === 'expenses' ? expandedLoadingMore : loadingMore}
+              hasMore={expandedCard === 'expenses' ? expandedHasMore : hasMore}
+              onLoadMore={expandedCard === 'expenses' ? handleExpandedLoadMore : handleLoadMore}
+              onSearch={expandedCard === 'expenses' ? handleExpandedSearch : null}
               isExpanded={expandedCard === 'expenses'}
               onExpand={() => handleExpandToggle('expenses')} 
               onRefresh={fetchLogs} 
@@ -310,11 +423,12 @@ export default function LogsPage() {
 
           {(!expandedCard || expandedCard === 'transfers') && (
             <TransferLogsCard 
-              transfersData={transfers} 
-              loading={loading} 
-              loadingMore={loadingMore}
-              hasMore={hasMore}
-              onLoadMore={handleLoadMore}
+              transfersData={expandedCard === 'transfers' && (!selectedDates || selectedDates.length === 0) ? expandedLogs : transfers} 
+              loading={expandedCard === 'transfers' ? expandedLoading : loading} 
+              loadingMore={expandedCard === 'transfers' ? expandedLoadingMore : loadingMore}
+              hasMore={expandedCard === 'transfers' ? expandedHasMore : hasMore}
+              onLoadMore={expandedCard === 'transfers' ? handleExpandedLoadMore : handleLoadMore}
+              onSearch={expandedCard === 'transfers' ? handleExpandedSearch : null}
               isExpanded={expandedCard === 'transfers'}
               onExpand={() => handleExpandToggle('transfers')} 
             />
@@ -322,11 +436,12 @@ export default function LogsPage() {
 
           {(!expandedCard || expandedCard === 'pettyCash') && (
             <PettyCashLogsCard 
-              pettyCashData={pettyCash} 
-              loading={loading} 
-              loadingMore={loadingMore}
-              hasMore={hasMore}
-              onLoadMore={handleLoadMore}
+              pettyCashData={expandedCard === 'pettyCash' && (!selectedDates || selectedDates.length === 0) ? expandedLogs : pettyCash} 
+              loading={expandedCard === 'pettyCash' ? expandedLoading : loading} 
+              loadingMore={expandedCard === 'pettyCash' ? expandedLoadingMore : loadingMore}
+              hasMore={expandedCard === 'pettyCash' ? expandedHasMore : hasMore}
+              onLoadMore={expandedCard === 'pettyCash' ? handleExpandedLoadMore : handleLoadMore}
+              onSearch={expandedCard === 'pettyCash' ? handleExpandedSearch : null}
               isExpanded={expandedCard === 'pettyCash'}
               onExpand={() => handleExpandToggle('pettyCash')} 
             />

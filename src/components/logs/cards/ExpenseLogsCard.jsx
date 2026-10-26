@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import EditExpenseDateModal from '../../expenses/EditExpenseDateModal'; // ✅ Import the new modal
 
-export default function ExpenseLogsCard({ expensesData, loading, loadingMore, hasMore, onLoadMore, isExpanded, onExpand, onRefresh }) {
+export default function ExpenseLogsCard({ expensesData, loading, loadingMore, hasMore, onLoadMore, onSearch, isExpanded, onExpand, onRefresh }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
+  const debounceTimer = useRef(null);
   
   // ✅ NEW: State to manage the Edit Modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -13,6 +14,24 @@ export default function ExpenseLogsCard({ expensesData, loading, loadingMore, ha
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false);
+
+  // Handle debounced search changes triggering server search
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if (onSearch) {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(() => {
+        onSearch(val);
+      }, 350);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
 
   // Handle infinite scroll on bottom threshold
   const handleScroll = (e) => {
@@ -99,15 +118,25 @@ export default function ExpenseLogsCard({ expensesData, loading, loadingMore, ha
   const formatTrxDate = (dateVal) => {
     if (!dateVal) return '--:--';
     try {
-      let dateStr = typeof dateVal === 'object' && dateVal.value ? dateVal.value : String(dateVal);
-      dateStr = dateStr.replace(' ', 'T');
-      const dateObj = new Date(dateStr);
-      if (isNaN(dateObj.getTime())) return 'Invalid Date';
+      let dateObj;
+      if (typeof dateVal?.toDate === 'function') {
+        dateObj = dateVal.toDate();
+      } else if (dateVal._seconds) {
+        dateObj = new Date(dateVal._seconds * 1000);
+      } else if (dateVal.seconds) {
+        dateObj = new Date(dateVal.seconds * 1000);
+      } else if (typeof dateVal === 'object' && dateVal.value) {
+        dateObj = new Date(String(dateVal.value).replace(' ', 'T'));
+      } else {
+        let dateStr = String(dateVal).replace(' ', 'T');
+        dateObj = new Date(dateStr);
+      }
+      if (isNaN(dateObj.getTime())) return '--:--';
       
       return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' - ' + 
              dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch (error) {
-      return 'Invalid Date';
+      return '--:--';
     }
   };
 
@@ -151,7 +180,7 @@ export default function ExpenseLogsCard({ expensesData, loading, loadingMore, ha
                 type="text"
                 placeholder="Search description or amount..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="bg-white/20 text-white placeholder:text-white/70 border border-white/20 rounded-full pl-4 pr-9 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-white/50 w-40 sm:w-64 transition-all backdrop-blur-sm"
               />
               <svg className="w-3.5 h-3.5 text-white/80 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,6 +319,22 @@ export default function ExpenseLogsCard({ expensesData, loading, loadingMore, ha
                       </tr>
                     );
                   })}
+
+                  {hasMore && !loadingMore && filteredData.length < 5 && (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-4 text-center bg-rose-50/20">
+                        <button
+                          onClick={onLoadMore}
+                          className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-semibold text-rose-600 bg-white hover:bg-rose-50 border border-rose-200 rounded-xl transition-all shadow-sm"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                          Load More Records
+                        </button>
+                      </td>
+                    </tr>
+                  )}
 
                   {loadingMore && (
                     <tr>

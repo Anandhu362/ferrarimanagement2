@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import EditInflowDateModal from '../../inflow/EditInflowDateModal';
 
-export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasMore, onLoadMore, isExpanded, onExpand, onRefresh }) {
+export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasMore, onLoadMore, onSearch, isExpanded, onExpand, onRefresh }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
+  const debounceTimer = useRef(null);
   
   // Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -13,6 +14,24 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
   
   // Track if navigation is currently via keyboard to prevent hover jumping
   const isKeyboardNav = useRef(false); 
+
+  // Handle debounced search changes triggering server search
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if (onSearch) {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(() => {
+        onSearch(val);
+      }, 350);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
 
   // Handle infinite scroll on bottom threshold
   const handleScroll = (e) => {
@@ -107,15 +126,25 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
   const formatTrxDate = (dateVal) => {
     if (!dateVal) return '--:--';
     try {
-      let dateStr = typeof dateVal === 'object' && dateVal.value ? dateVal.value : String(dateVal);
-      dateStr = dateStr.replace(' ', 'T');
-      const dateObj = new Date(dateStr);
-      if (isNaN(dateObj.getTime())) return 'Invalid Date';
+      let dateObj;
+      if (typeof dateVal?.toDate === 'function') {
+        dateObj = dateVal.toDate();
+      } else if (dateVal._seconds) {
+        dateObj = new Date(dateVal._seconds * 1000);
+      } else if (dateVal.seconds) {
+        dateObj = new Date(dateVal.seconds * 1000);
+      } else if (typeof dateVal === 'object' && dateVal.value) {
+        dateObj = new Date(String(dateVal.value).replace(' ', 'T'));
+      } else {
+        let dateStr = String(dateVal).replace(' ', 'T');
+        dateObj = new Date(dateStr);
+      }
+      if (isNaN(dateObj.getTime())) return '--:--';
       
       return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' - ' + 
              dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch (error) {
-      return 'Invalid Date';
+      return '--:--';
     }
   };
 
@@ -187,7 +216,7 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
                 type="text"
                 placeholder="Search name, invoice, or amount..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="bg-white/20 text-white placeholder:text-white/70 border border-white/20 rounded-full pl-4 pr-9 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-white/50 w-48 sm:w-64 transition-all backdrop-blur-sm"
               />
               <svg className="w-3.5 h-3.5 text-white/80 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -374,6 +403,22 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
                       </tr>
                     );
                   })}
+
+                  {hasMore && !loadingMore && filteredData.length < 5 && (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-4 text-center bg-emerald-50/20">
+                        <button
+                          onClick={onLoadMore}
+                          className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-semibold text-emerald-600 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition-all shadow-sm"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                          Load More Records
+                        </button>
+                      </td>
+                    </tr>
+                  )}
 
                   {loadingMore && (
                     <tr>
