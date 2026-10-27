@@ -123,6 +123,10 @@ export const generateMasterLedgerPDF = ({
   const openingBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.openingBalance) || 0) : 0;
   const currentBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.currentBalance) || closingBalance) : closingBalance;
   const dayNetMovement = currentBalance - openingBalance;
+  // Total CEO Vault aggregate balance = CEO Safe Cash + Reserve Vault + Petty Cash
+  const totalCeoVaultBalance = (ceoVaultSummary && typeof ceoVaultSummary.totalCeoVaultBalance === 'number')
+    ? ceoVaultSummary.totalCeoVaultBalance
+    : (closingBalance + reserveBalance + pettyCashBalance);
 
   // ----------------------------------------------------
   // DRAW HEADER SECTION (Top Navigation & Metadata Bar)
@@ -247,7 +251,7 @@ export const generateMasterLedgerPDF = ({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
-  doc.text(formatPdfCurrency(currentBalance), c1X + 12.5, currentY + 12.8);
+  doc.text(formatPdfCurrency(totalCeoVaultBalance), c1X + 12.5, currentY + 12.8);
 
   // Live status dot
   doc.setFillColor(16, 185, 129); // emerald dot

@@ -37,6 +37,10 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
   const pettyCashBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.pettyCashBalance) || 0) : 0;
   const openingBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.openingBalance) || 0) : 0;
   const currentBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.currentBalance) || closingBalance) : 0;
+  // Total CEO Vault aggregate balance = CEO Safe Cash + Reserve Vault + Petty Cash
+  const totalCeoVaultBalance = (ceoVaultSummary && typeof ceoVaultSummary.totalCeoVaultBalance === 'number')
+    ? ceoVaultSummary.totalCeoVaultBalance
+    : (closingBalance + reserveBalance + pettyCashBalance);
 
   // Format active date string for header
   const dateLabel = selectedDates.length === 1
@@ -111,7 +115,7 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
             <div className="flex items-baseline gap-2 my-2">
               <span className="text-base lg:text-lg font-medium text-white/50">AED</span>
               <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-none whitespace-nowrap">
-                {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {totalCeoVaultBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
 
