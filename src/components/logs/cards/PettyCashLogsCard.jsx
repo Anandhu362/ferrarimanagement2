@@ -1,8 +1,29 @@
 // frontend/src/components/logs/cards/PettyCashLogsCard.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import AuditTickButton from '../AuditTickButton';
+import { toggleLedgerNotedRecord } from '../../../config/api';
 
 export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore, hasMore, onLoadMore, onSearch, isExpanded, onExpand }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [notedOverrides, setNotedOverrides] = useState({});
+
+  const handleToggleNoted = async (trx) => {
+    if (!trx || !trx.id) return;
+    const currentStatus = notedOverrides[trx.id] !== undefined 
+      ? notedOverrides[trx.id] 
+      : (trx.isNoted !== undefined ? trx.isNoted : true);
+    const newStatus = !currentStatus;
+
+    setNotedOverrides(prev => ({ ...prev, [trx.id]: newStatus }));
+
+    try {
+      const branchId = trx.branchId || 'AL FAJAR AUH';
+      await toggleLedgerNotedRecord(branchId, trx.id, newStatus);
+    } catch (err) {
+      console.error('[PettyCashLogsCard.jsx] Failed to toggle noted status:', err);
+      setNotedOverrides(prev => ({ ...prev, [trx.id]: currentStatus }));
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
   const debounceTimer = useRef(null);
@@ -86,6 +107,11 @@ export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore,
       e.preventDefault();
       isKeyboardNav.current = true; // Lock mouse hover
       setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      if (selectedIndex >= 0 && selectedIndex < filteredData.length) {
+        e.preventDefault();
+        handleToggleNoted(filteredData[selectedIndex]);
+      }
     }
   };
 
@@ -256,7 +282,15 @@ export default function PettyCashLogsCard({ pettyCashData, loading, loadingMore,
                         }`}
                       >
                         <td className="px-6 py-4 text-slate-900 font-medium whitespace-nowrap">{trx.id}</td>
-                        <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">{formatTrxDate(trx.createdAt || trx.created_at)}</td>
+                        <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">
+                          <div className="flex items-center gap-2.5">
+                            <AuditTickButton 
+                              isNoted={notedOverrides[trx.id] !== undefined ? notedOverrides[trx.id] : (trx.isNoted !== undefined ? trx.isNoted : true)}
+                              onToggle={() => handleToggleNoted(trx)}
+                            />
+                            <span>{formatTrxDate(trx.createdAt || trx.created_at)}</span>
+                          </div>
+                        </td>
                         
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">

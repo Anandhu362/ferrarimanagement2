@@ -68,6 +68,11 @@ export const editExpenseRecord = async (branchId, recordId, payload) => {
   return await api.patch(`/api/ledger/edit/expense/${encodeURIComponent(branchId)}/${encodeURIComponent(recordId)}`, payload);
 };
 
+// Toggle Master Ledger Audit Tick (isNoted)
+export const toggleLedgerNotedRecord = async (branchId, recordId, isNoted) => {
+  return await api.patch(`/api/logs/${encodeURIComponent(branchId)}/${encodeURIComponent(recordId)}/toggle-noted`, { isNoted });
+};
+
 // ----------------------------------------------------------------------
 // PRE-EXISTING ENDPOINTS
 // ----------------------------------------------------------------------
