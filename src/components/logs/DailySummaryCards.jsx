@@ -33,14 +33,19 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
 
   // CEO Vault Snapshot Numbers
   const closingBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.closingBalance) || 0) : 0;
+  const accountantBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.accountantVaultBalance) || 0) : 0;
   const reserveBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.reserveVaultBalance) || 0) : 0;
   const pettyCashBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.pettyCashBalance) || 0) : 0;
   const openingBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.openingBalance) || 0) : 0;
   const currentBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.currentBalance) || closingBalance) : 0;
-  // Total CEO Vault aggregate balance = CEO Safe Cash + Reserve Vault + Petty Cash
-  const totalCeoVaultBalance = (ceoVaultSummary && typeof ceoVaultSummary.totalCeoVaultBalance === 'number')
-    ? ceoVaultSummary.totalCeoVaultBalance
-    : (closingBalance + reserveBalance + pettyCashBalance);
+  // Total Branch Cash aggregate balance = CEO Safe Cash + Accountant Vault + Reserve Vault + Petty Cash
+  const totalCeoVaultBalance = (ceoVaultSummary && typeof (ceoVaultSummary.totalCeoVaultBalance ?? ceoVaultSummary.totalBranchCash) === 'number')
+    ? (ceoVaultSummary.totalCeoVaultBalance ?? ceoVaultSummary.totalBranchCash)
+    : (closingBalance + accountantBalance + reserveBalance + pettyCashBalance);
+
+  const netMovement = (ceoVaultSummary && typeof ceoVaultSummary.netChange === 'number')
+    ? ceoVaultSummary.netChange
+    : (closingBalance - openingBalance);
 
   // Format active date string for header
   const dateLabel = selectedDates.length === 1
@@ -104,11 +109,11 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
       {/* ROW 1: EXECUTIVE VAULT STATUS CARDS (2 COLUMNS FOR MAXIMUM WIDTH & ZERO TRUNCATION) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
         
-        {/* CARD 1: CEO VAULT BALANCE & SUB-VAULT ALLOCATIONS */}
+        {/* CARD 1: TOTAL BRANCH CASH & SUB-VAULT ALLOCATIONS */}
         <div className="bg-[#1E1B2E] rounded-[1.75rem] p-6 text-white border border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-white/60 text-xs font-semibold tracking-wider uppercase">CEO Vault Total Balance</span>
+              <span className="text-white/60 text-xs font-semibold tracking-wider uppercase">Total Branch Cash (All Vaults)</span>
               <span className="text-[11px] font-bold text-white/80 bg-white/10 px-3 py-1 rounded-lg uppercase tracking-wider">{dateLabel}</span>
             </div>
 
@@ -125,25 +130,32 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
             </div>
           </div>
 
-          {/* Sub-Vault Allocation Breakdown (3 Spacious Dedicated Containers) */}
-          <div className="mt-5 pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-white/5 p-3 rounded-xl border border-white/10">
-              <span className="text-[11px] text-white/50 block font-medium uppercase tracking-wider mb-1">CEO Safe Cash</span>
-              <span className="text-sm font-bold text-white tracking-tight whitespace-nowrap">
+          {/* Sub-Vault Allocation Breakdown (4 Dedicated Containers) */}
+          <div className="mt-5 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
+              <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">CEO Safe Cash</span>
+              <span className="text-xs sm:text-sm font-bold text-white tracking-tight whitespace-nowrap">
                 AED {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
 
-            <div className="bg-white/5 p-3 rounded-xl border border-white/10">
-              <span className="text-[11px] text-white/50 block font-medium uppercase tracking-wider mb-1">Reserve Vault</span>
-              <span className="text-sm font-bold text-white tracking-tight whitespace-nowrap">
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
+              <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">Accountant Vault</span>
+              <span className="text-xs sm:text-sm font-bold text-white tracking-tight whitespace-nowrap">
+                AED {accountantBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
+              <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">Reserve Vault</span>
+              <span className="text-xs sm:text-sm font-bold text-white tracking-tight whitespace-nowrap">
                 AED {reserveBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
 
-            <div className="bg-white/5 p-3 rounded-xl border border-white/10">
-              <span className="text-[11px] text-white/50 block font-medium uppercase tracking-wider mb-1">Petty Cash</span>
-              <span className="text-sm font-bold text-white tracking-tight whitespace-nowrap">
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
+              <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">Petty Cash</span>
+              <span className="text-xs sm:text-sm font-bold text-white tracking-tight whitespace-nowrap">
                 AED {pettyCashBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
@@ -187,8 +199,8 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
 
             <div className="flex items-center gap-2 bg-white/5 px-3.5 py-2 rounded-xl border border-white/10">
               <span className="text-white/70">Day Net Movement:</span>
-              <strong className={`font-bold ml-1 ${closingBalance >= openingBalance ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {closingBalance >= openingBalance ? '+' : ''}{(closingBalance - openingBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED
+              <strong className={`font-bold ml-1 ${netMovement >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {netMovement >= 0 ? '+' : ''}{netMovement.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED
               </strong>
             </div>
           </div>

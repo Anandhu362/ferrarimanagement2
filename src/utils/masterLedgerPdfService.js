@@ -118,15 +118,18 @@ export const generateMasterLedgerPDF = ({
   }, { inflow: 0, outflow: 0, exchange: 0, transfer: 0 });
 
   const closingBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.closingBalance) || 0) : 0;
+  const accountantBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.accountantVaultBalance) || 0) : 0;
   const reserveBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.reserveVaultBalance) || 0) : 0;
   const pettyCashBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.pettyCashBalance) || 0) : 0;
   const openingBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.openingBalance) || 0) : 0;
   const currentBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.currentBalance) || closingBalance) : closingBalance;
-  const dayNetMovement = currentBalance - openingBalance;
-  // Total CEO Vault aggregate balance = CEO Safe Cash + Reserve Vault + Petty Cash
-  const totalCeoVaultBalance = (ceoVaultSummary && typeof ceoVaultSummary.totalCeoVaultBalance === 'number')
-    ? ceoVaultSummary.totalCeoVaultBalance
-    : (closingBalance + reserveBalance + pettyCashBalance);
+  const dayNetMovement = (ceoVaultSummary && typeof ceoVaultSummary.netChange === 'number')
+    ? ceoVaultSummary.netChange
+    : (currentBalance - openingBalance);
+  // Total Branch Cash aggregate balance = CEO Safe Cash + Accountant Vault + Reserve Vault + Petty Cash
+  const totalCeoVaultBalance = (ceoVaultSummary && typeof (ceoVaultSummary.totalCeoVaultBalance ?? ceoVaultSummary.totalBranchCash) === 'number')
+    ? (ceoVaultSummary.totalCeoVaultBalance ?? ceoVaultSummary.totalBranchCash)
+    : (closingBalance + accountantBalance + reserveBalance + pettyCashBalance);
 
   // ----------------------------------------------------
   // DRAW HEADER SECTION (Top Navigation & Metadata Bar)
@@ -261,14 +264,15 @@ export const generateMasterLedgerPDF = ({
   doc.setTextColor(148, 163, 184);
   doc.text('Live Safe Cash Connected', c1X + 87.5, currentY + 12.3);
 
-  // 3 Sub-Vault Breakdown Boxes (CEO Safe Cash, Reserve Vault, Petty Cash)
+  // 4 Sub-Vault Breakdown Boxes (CEO Safe Cash, Accountant Vault, Reserve Vault, Petty Cash)
   const subBoxY = currentY + 15.5;
   const subBoxH = 8;
-  const subBoxGap = 2.5;
-  const subBoxW = (execCardWidth - 10 - subBoxGap * 2) / 3; // ~38.8mm
+  const subBoxGap = 2;
+  const subBoxW = (execCardWidth - 10 - subBoxGap * 3) / 4; // ~29.1mm
 
   const subVaults = [
     { label: 'CEO SAFE CASH', value: closingBalance },
+    { label: 'ACCOUNTANT VAULT', value: accountantBalance },
     { label: 'RESERVE VAULT', value: reserveBalance },
     { label: 'PETTY CASH', value: pettyCashBalance }
   ];
@@ -278,14 +282,14 @@ export const generateMasterLedgerPDF = ({
     drawCardBox(svX, subBoxY, subBoxW, subBoxH, [42, 38, 64], [62, 56, 92], 1.5);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(4.6);
+    doc.setFontSize(4.3);
     doc.setTextColor(165, 180, 252);
-    doc.text(sv.label, svX + 3, subBoxY + 3);
+    doc.text(sv.label, svX + 2.5, subBoxY + 3);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.2);
+    doc.setFontSize(5.8);
     doc.setTextColor(255, 255, 255);
-    doc.text(`AED ${formatPdfCurrency(sv.value)}`, svX + 3, subBoxY + 6.3);
+    doc.text(`AED ${formatPdfCurrency(sv.value)}`, svX + 2.5, subBoxY + 6.3);
   });
 
   // --- CARD 2: CEO VAULT DAILY AUDIT ---
