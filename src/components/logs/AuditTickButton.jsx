@@ -9,7 +9,7 @@ import React from 'react';
  * @param {Function} onToggle - Callback triggered when toggled
  * @param {string} title - Optional custom tooltip text
  */
-export default function AuditTickButton({ isNoted = true, onToggle, title }) {
+export default function AuditTickButton({ isNoted = false, onToggle, title }) {
   return (
     <button
       type="button"

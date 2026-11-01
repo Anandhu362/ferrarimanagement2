@@ -12,7 +12,7 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
     if (!trx || !trx.id) return;
     const currentStatus = notedOverrides[trx.id] !== undefined 
       ? notedOverrides[trx.id] 
-      : (trx.isNoted !== undefined ? trx.isNoted : true);
+      : (trx.isNoted !== undefined ? trx.isNoted : false);
     const newStatus = !currentStatus;
 
     setNotedOverrides(prev => ({ ...prev, [trx.id]: newStatus }));
@@ -332,17 +332,15 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
                         }`}
                       >
                         <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-light text-xs group-hover:text-slate-700 transition-colors">
-                          <div className="flex items-center gap-2.5">
-                            <AuditTickButton 
-                              isNoted={notedOverrides[trx.id] !== undefined ? notedOverrides[trx.id] : (trx.isNoted !== undefined ? trx.isNoted : true)}
-                              onToggle={() => handleToggleNoted(trx)}
-                            />
-                            <span>{formatTrxDate(trx.createdAt || trx.created_at)}</span>
-                          </div>
+                          {formatTrxDate(trx.createdAt || trx.created_at)}
                         </td>
                         
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
+                            <AuditTickButton 
+                              isNoted={notedOverrides[trx.id] !== undefined ? notedOverrides[trx.id] : (trx.isNoted !== undefined ? trx.isNoted : false)}
+                              onToggle={() => handleToggleNoted(trx)}
+                            />
                             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
                             <div className="flex flex-col">
                               <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
