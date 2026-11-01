@@ -38,6 +38,7 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
   const pettyCashBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.pettyCashBalance) || 0) : 0;
   const openingBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.openingBalance) || 0) : 0;
   const currentBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.currentBalance) || closingBalance) : 0;
+  const ceoSafeBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.ceoSafeBalance ?? ceoVaultSummary.currentBalance) || closingBalance) : 0;
   // Total Branch Cash aggregate balance = CEO Safe Cash + Accountant Vault + Reserve Vault + Petty Cash
   const totalCeoVaultBalance = (ceoVaultSummary && typeof (ceoVaultSummary.totalCeoVaultBalance ?? ceoVaultSummary.totalBranchCash) === 'number')
     ? (ceoVaultSummary.totalCeoVaultBalance ?? ceoVaultSummary.totalBranchCash)
@@ -135,7 +136,7 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
             <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
               <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">CEO Safe Cash</span>
               <span className="text-xs sm:text-sm font-bold text-white tracking-tight whitespace-nowrap">
-                AED {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                AED {ceoSafeBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
 

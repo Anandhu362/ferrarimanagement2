@@ -123,9 +123,10 @@ export const generateMasterLedgerPDF = ({
   const pettyCashBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.pettyCashBalance) || 0) : 0;
   const openingBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.openingBalance) || 0) : 0;
   const currentBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.currentBalance) || closingBalance) : closingBalance;
+  const ceoSafeBalance = ceoVaultSummary ? (parseFloat(ceoVaultSummary.ceoSafeBalance ?? ceoVaultSummary.currentBalance) || closingBalance) : currentBalance;
   const dayNetMovement = (ceoVaultSummary && typeof ceoVaultSummary.netChange === 'number')
     ? ceoVaultSummary.netChange
-    : (currentBalance - openingBalance);
+    : (closingBalance - openingBalance);
   // Total Branch Cash aggregate balance = CEO Safe Cash + Accountant Vault + Reserve Vault + Petty Cash
   const totalCeoVaultBalance = (ceoVaultSummary && typeof (ceoVaultSummary.totalCeoVaultBalance ?? ceoVaultSummary.totalBranchCash) === 'number')
     ? (ceoVaultSummary.totalCeoVaultBalance ?? ceoVaultSummary.totalBranchCash)
@@ -271,7 +272,7 @@ export const generateMasterLedgerPDF = ({
   const subBoxW = (execCardWidth - 10 - subBoxGap * 3) / 4; // ~29.1mm
 
   const subVaults = [
-    { label: 'CEO SAFE CASH', value: closingBalance },
+    { label: 'CEO SAFE CASH', value: ceoSafeBalance },
     { label: 'ACCOUNTANT VAULT', value: accountantBalance },
     { label: 'RESERVE VAULT', value: reserveBalance },
     { label: 'PETTY CASH', value: pettyCashBalance }
