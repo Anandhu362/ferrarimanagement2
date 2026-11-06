@@ -207,12 +207,11 @@ export const generateMasterLedgerPDF = ({
   doc.text('VERIFIED PARITY', pageWidth - marginX - 22, currentY - 0.6, { align: 'center' });
 
   // ----------------------------------------------------
-  // SECTION 1: EXECUTIVE VAULT CARDS (ROW 1 - 2 LARGE CARDS)
+  // SECTION 1: EXECUTIVE VAULT STATUS BAR (COMPACT FINTECH BANNER)
   // ----------------------------------------------------
-  currentY = 27;
-  const execCardGap = 4;
-  const execCardWidth = (printableWidth - execCardGap) / 2; // 136.5mm
-  const execCardHeight = 26; // 26mm high
+  currentY = 26;
+  const execCardWidth = printableWidth; // 277mm full printable width
+  const execCardHeight = 18; // Compact 18mm height for sleek fintech density
 
   // Helper to draw clean rounded card
   const drawCardBox = (x, y, w, h, fillRGB, strokeRGB, radius = 2.5) => {
@@ -228,48 +227,52 @@ export const generateMasterLedgerPDF = ({
 
   const isLive = !!(ceoVaultSummary && ceoVaultSummary.isLiveSnapshot);
 
-  // --- CARD 1: CEO VAULT TOTAL BALANCE ---
+  // --- SINGLE EXECUTIVE CARD: TOTAL BRANCH CASH & 4 SUB-VAULTS ---
   const c1X = marginX;
   drawCardBox(c1X, currentY, execCardWidth, execCardHeight, [30, 27, 46], [55, 48, 80]); // #1E1B2E
 
+  // Left: Label & Hero Balance
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.5);
   doc.setTextColor(199, 210, 254); // indigo-200
-  doc.text('CEO VAULT TOTAL BALANCE', c1X + 5, currentY + 5.2);
+  doc.text('TOTAL BRANCH CASH (ALL VAULTS)', c1X + 6, currentY + 5.2);
 
-  // Date / Live pill inside Card 1
-  doc.setFillColor(54, 48, 82);
-  const c1PillText = isLive ? 'LIVE SAFE' : shortDateLabel;
-  doc.roundedRect(c1X + execCardWidth - 23, currentY + 2.2, 18, 4, 1.2, 1.2, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.5);
-  doc.setTextColor(241, 245, 249);
-  doc.text(c1PillText, c1X + execCardWidth - 14, currentY + 4.9, { align: 'center' });
-
-  // Hero Balance Number
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(148, 163, 184); // slate-400
-  doc.text('AED', c1X + 5, currentY + 12.8);
+  doc.text('AED', c1X + 6, currentY + 12.2);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
-  doc.text(formatPdfCurrency(totalCeoVaultBalance), c1X + 12.5, currentY + 12.8);
+  doc.text(formatPdfCurrency(totalCeoVaultBalance), c1X + 13.5, currentY + 12.2);
 
   // Live status dot
   doc.setFillColor(16, 185, 129); // emerald dot
-  doc.circle(c1X + 85, currentY + 11.5, 0.8, 'F');
+  doc.circle(c1X + 6, currentY + 15.2, 0.7, 'F');
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5.5);
+  doc.setFontSize(5.2);
   doc.setTextColor(148, 163, 184);
-  doc.text('Live Safe Cash Connected', c1X + 87.5, currentY + 12.3);
+  doc.text('Live Safe Cash Connected', c1X + 8.5, currentY + 15.8);
 
-  // 4 Sub-Vault Breakdown Boxes (CEO Safe Cash, Accountant Vault, Reserve Vault, Petty Cash)
-  const subBoxY = currentY + 15.5;
-  const subBoxH = 8;
-  const subBoxGap = 2;
-  const subBoxW = (execCardWidth - 10 - subBoxGap * 3) / 4; // ~29.1mm
+  // Right Top: Date / Live pill
+  doc.setFillColor(54, 48, 82);
+  const c1PillText = isLive ? 'LIVE SAFE' : shortDateLabel;
+  const pillW = 22;
+  const pillH = 4;
+  doc.roundedRect(c1X + execCardWidth - pillW - 6, currentY + 2.2, pillW, pillH, 1.2, 1.2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(5.5);
+  doc.setTextColor(241, 245, 249);
+  doc.text(c1PillText, c1X + execCardWidth - 6 - pillW / 2, currentY + 4.9, { align: 'center' });
+
+  // Right: 4 Sub-Vault Breakdown Boxes (CEO Safe Cash, Accountant Vault, Reserve Vault, Petty Cash)
+  const subVaultSectionW = 182; // 182mm allocated for the 4 sub-vault boxes
+  const subBoxGap = 2.5;
+  const subBoxW = (subVaultSectionW - subBoxGap * 3) / 4; // ~43.6mm each
+  const subBoxH = 8.5;
+  const subBoxY = currentY + 7.2;
+  const subVaultsStartX = c1X + execCardWidth - subVaultSectionW - 6;
 
   const subVaults = [
     { label: 'CEO SAFE CASH', value: ceoSafeBalance },
@@ -279,115 +282,24 @@ export const generateMasterLedgerPDF = ({
   ];
 
   subVaults.forEach((sv, idx) => {
-    const svX = c1X + 5 + idx * (subBoxW + subBoxGap);
+    const svX = subVaultsStartX + idx * (subBoxW + subBoxGap);
     drawCardBox(svX, subBoxY, subBoxW, subBoxH, [42, 38, 64], [62, 56, 92], 1.5);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(4.3);
     doc.setTextColor(165, 180, 252);
-    doc.text(sv.label, svX + 2.5, subBoxY + 3);
+    doc.text(sv.label, svX + 2.5, subBoxY + 3.2);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(5.8);
+    doc.setFontSize(6.2);
     doc.setTextColor(255, 255, 255);
-    doc.text(`AED ${formatPdfCurrency(sv.value)}`, svX + 2.5, subBoxY + 6.3);
+    doc.text(`AED ${formatPdfCurrency(sv.value)}`, svX + 2.5, subBoxY + 6.7);
   });
-
-  // --- CARD 2: CEO VAULT DAILY AUDIT ---
-  const c2X = c1X + execCardWidth + execCardGap;
-  drawCardBox(c2X, currentY, execCardWidth, execCardHeight, [30, 27, 46], [55, 48, 80]); // #1E1B2E
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(199, 210, 254);
-  doc.text('CEO VAULT DAILY AUDIT', c2X + 5, currentY + 5.2);
-
-  // Date pill inside Card 2
-  doc.setFillColor(54, 48, 82);
-  doc.roundedRect(c2X + execCardWidth - 25, currentY + 2.2, 20, 4, 1.2, 1.2, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.5);
-  doc.setTextColor(241, 245, 249);
-  doc.text(shortDateLabel, c2X + execCardWidth - 15, currentY + 4.9, { align: 'center' });
-
-  // 2 Side-by-Side Metric Boxes (Daily Opening & Daily Closing)
-  const auditBoxY = currentY + 7.5;
-  const auditBoxH = 11;
-  const auditBoxGap = 3;
-  const auditBoxW = (execCardWidth - 10 - auditBoxGap) / 2; // ~61.75mm
-
-  // Box 1: Opening
-  const openBoxX = c2X + 5;
-  drawCardBox(openBoxX, auditBoxY, auditBoxW, auditBoxH, [42, 38, 64], [62, 56, 92], 1.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(4.8);
-  doc.setTextColor(148, 163, 184);
-  doc.text('DAILY OPENING BALANCE', openBoxX + 4, auditBoxY + 3.8);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5.5);
-  doc.setTextColor(148, 163, 184);
-  doc.text('AED', openBoxX + 4, auditBoxY + 8.5);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text(formatPdfCurrency(openingBalance), openBoxX + 10.5, auditBoxY + 8.5);
-
-  // Box 2: Closing
-  const closeBoxX = openBoxX + auditBoxW + auditBoxGap;
-  drawCardBox(closeBoxX, auditBoxY, auditBoxW, auditBoxH, [42, 38, 64], [62, 56, 92], 1.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(4.8);
-  doc.setTextColor(148, 163, 184);
-  doc.text('DAILY CLOSING BALANCE', closeBoxX + 4, auditBoxY + 3.8);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5.5);
-  doc.setTextColor(148, 163, 184);
-  doc.text('AED', closeBoxX + 4, auditBoxY + 8.5);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text(formatPdfCurrency(closingBalance), closeBoxX + 10.5, auditBoxY + 8.5);
-
-  // Card 2 Footer Bar: Current Safe Cash & Day Net Movement
-  const auditFootY = currentY + 19.8;
-  const auditFootH = 4.8;
-  const auditFootW = execCardWidth - 10;
-  drawCardBox(c2X + 5, auditFootY, auditFootW, auditFootH, [24, 21, 38], null, 1.2);
-
-  // Left: Current safe cash indicator
-  doc.setFillColor(245, 158, 11); // amber dot
-  doc.circle(c2X + 8, auditFootY + 2.4, 0.7, 'F');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5);
-  doc.setTextColor(203, 213, 225);
-  doc.text('Current Safe Cash:', c2X + 10.5, auditFootY + 3.2);
-
-  doc.setFont('helvetica', 'bold');
-  doc.text(`AED ${formatPdfCurrency(currentBalance)}`, c2X + 31, auditFootY + 3.2);
-
-  // Right: Day Net Movement (proper spacing to eliminate clash)
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(5);
-  doc.setTextColor(148, 163, 184);
-  doc.text('Day Net Movement:', c2X + auditFootW - 42, auditFootY + 3.2);
-
-  const isNetPos = dayNetMovement >= 0;
-  doc.setFont('helvetica', 'bold');
-  if (isNetPos) {
-    doc.setTextColor(52, 211, 153); // emerald-400
-  } else {
-    doc.setTextColor(251, 113, 133); // rose-400
-  }
-  doc.text(`${isNetPos ? '+' : ''}${formatPdfCurrency(dayNetMovement)} AED`, c2X + auditFootW + 2, auditFootY + 3.2, { align: 'right' });
 
   // ----------------------------------------------------
   // SECTION 2: TRANSACTION FLOW VOLUME CARDS (ROW 2 - 4 BALANCED CARDS)
   // ----------------------------------------------------
-  currentY = currentY + execCardHeight + 2.5; // 27 + 26 + 2.5 = 55.5mm
+  currentY = currentY + execCardHeight + 3.0; // 26 + 18 + 3.0 = 47mm
   const flowCardGap = 3.5;
   const flowCardWidth = (printableWidth - flowCardGap * 3) / 4; // ~66.6mm
   const flowCardHeight = 16; // 16mm high for generous internal padding

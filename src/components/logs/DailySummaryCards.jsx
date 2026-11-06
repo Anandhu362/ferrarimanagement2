@@ -107,103 +107,57 @@ export default function DailySummaryCards({ logs = [], ceoVaultSummary = null, s
   return (
     <div className="mb-6 space-y-4 lg:space-y-5">
       
-      {/* ROW 1: EXECUTIVE VAULT STATUS CARDS (2 COLUMNS FOR MAXIMUM WIDTH & ZERO TRUNCATION) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
+      {/* ROW 1: EXECUTIVE TOTAL BRANCH CASH & SUB-VAULT ALLOCATIONS (SINGLE COMPACT FINTECH BANNER) */}
+      <div className="bg-[#1E1B2E] rounded-[1.75rem] p-5 sm:p-6 text-white border border-slate-800 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-5">
         
-        {/* CARD 1: TOTAL BRANCH CASH & SUB-VAULT ALLOCATIONS */}
-        <div className="bg-[#1E1B2E] rounded-[1.75rem] p-6 text-white border border-slate-800 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-white/60 text-xs font-semibold tracking-wider uppercase">Total Branch Cash (All Vaults)</span>
-              <span className="text-[11px] font-bold text-white/80 bg-white/10 px-3 py-1 rounded-lg uppercase tracking-wider">{dateLabel}</span>
-            </div>
-
-            <div className="flex items-baseline gap-2 my-2">
-              <span className="text-base lg:text-lg font-medium text-white/50">AED</span>
-              <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-none whitespace-nowrap">
-                {totalCeoVaultBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs font-medium text-emerald-400 mt-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-              <span>Live Safe Cash Connected</span>
-            </div>
+        {/* Left Section: Hero Total Branch Cash */}
+        <div className="shrink-0">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-white/60 text-xs font-semibold tracking-wider uppercase">Total Branch Cash (All Vaults)</span>
+            <span className="text-[10px] font-bold text-white/80 bg-white/10 px-2.5 py-0.5 rounded-md uppercase tracking-wider">{dateLabel}</span>
           </div>
 
-          {/* Sub-Vault Allocation Breakdown (4 Dedicated Containers) */}
-          <div className="mt-5 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
-              <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">CEO Safe Cash</span>
-              <span className="text-xs sm:text-sm font-bold text-white tracking-tight whitespace-nowrap">
-                AED {ceoSafeBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
+          <div className="flex items-baseline gap-2 my-1">
+            <span className="text-base font-medium text-white/50">AED</span>
+            <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-none whitespace-nowrap">
+              {totalCeoVaultBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
 
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
-              <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">Accountant Vault</span>
-              <span className="text-xs sm:text-sm font-bold text-white tracking-tight whitespace-nowrap">
-                AED {accountantBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
-              <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">Reserve Vault</span>
-              <span className="text-xs sm:text-sm font-bold text-white tracking-tight whitespace-nowrap">
-                AED {reserveBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/10">
-              <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">Petty Cash</span>
-              <span className="text-xs sm:text-sm font-bold text-white tracking-tight whitespace-nowrap">
-                AED {pettyCashBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
+          <div className="flex items-center gap-2 text-xs font-medium text-emerald-400 mt-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+            <span>Live Safe Cash Connected</span>
           </div>
         </div>
 
-        {/* CARD 2: CEO VAULT DAILY AUDIT (OPENING, CLOSING, CURRENT & NET) */}
-        <div className="bg-[#1E1B2E] rounded-[1.75rem] p-6 text-white border border-slate-800 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-white/60 text-xs font-semibold tracking-wider uppercase">CEO Vault Daily Audit</span>
-              <span className="text-[11px] font-bold text-white/80 bg-white/10 px-3 py-1 rounded-lg uppercase tracking-wider">{dateLabel}</span>
-            </div>
-
-            {/* Opening & Closing Balance Side-by-Side Containers */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-2">
-              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold block mb-1">Daily Opening Balance</span>
-                <p className="text-xl sm:text-2xl font-bold text-white tracking-tight whitespace-nowrap">
-                  <span className="text-xs text-white/50 font-normal mr-1">AED</span>
-                  {openingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-
-              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold block mb-1">Daily Closing Balance</span>
-                <p className="text-xl sm:text-2xl font-bold text-white tracking-tight whitespace-nowrap">
-                  <span className="text-xs text-white/50 font-normal mr-1">AED</span>
-                  {closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
+        {/* Right Section: 4 Sub-Vault Allocation Containers Side-by-Side */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full lg:max-w-2xl">
+          <div className="bg-white/5 p-3 rounded-2xl border border-white/10 hover:border-white/20 transition-colors">
+            <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">CEO Safe Cash</span>
+            <span className="text-sm sm:text-base font-bold text-white tracking-tight whitespace-nowrap">
+              AED {ceoSafeBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
 
-          {/* Current Safe Cash & Day Net Movement Symmetrical Footer */}
-          <div className="mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 bg-white/5 px-3.5 py-2 rounded-xl border border-white/10">
-              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
-              <span className="text-white/70">Current Safe Cash: <strong className="text-white font-bold ml-1">AED {currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-            </div>
+          <div className="bg-white/5 p-3 rounded-2xl border border-white/10 hover:border-white/20 transition-colors">
+            <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">Accountant Vault</span>
+            <span className="text-sm sm:text-base font-bold text-white tracking-tight whitespace-nowrap">
+              AED {accountantBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
 
-            <div className="flex items-center gap-2 bg-white/5 px-3.5 py-2 rounded-xl border border-white/10">
-              <span className="text-white/70">Day Net Movement:</span>
-              <strong className={`font-bold ml-1 ${netMovement >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {netMovement >= 0 ? '+' : ''}{netMovement.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED
-              </strong>
-            </div>
+          <div className="bg-white/5 p-3 rounded-2xl border border-white/10 hover:border-white/20 transition-colors">
+            <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">Reserve Vault</span>
+            <span className="text-sm sm:text-base font-bold text-white tracking-tight whitespace-nowrap">
+              AED {reserveBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+
+          <div className="bg-white/5 p-3 rounded-2xl border border-white/10 hover:border-white/20 transition-colors">
+            <span className="text-[10px] text-white/50 block font-medium uppercase tracking-wider mb-1">Petty Cash</span>
+            <span className="text-sm sm:text-base font-bold text-white tracking-tight whitespace-nowrap">
+              AED {pettyCashBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
         </div>
 

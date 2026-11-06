@@ -288,6 +288,8 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
               <tr className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 shadow-sm">
                 <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Date & Time</th>
                 <th className="px-6 py-4 w-full bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Company</th>
+                {/* ✅ NOTE TOGGLE HEADER: Placed in between Company and Invoice */}
+                <th className="px-4 py-4 text-center whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Note</th>
                 {/* NEW INVOICE HEADER */}
                 <th className="px-6 py-4 whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Invoice</th>
                 <th className="px-6 py-4 text-right whitespace-nowrap bg-slate-50/95 backdrop-blur-md border-b border-slate-100/80">Amount (AED)</th>
@@ -300,7 +302,7 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
             <tbody className="divide-y divide-slate-100/80 text-sm">
               {!filteredData || filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
+                  <td colSpan="7" className="px-8 py-12 text-center text-slate-400 font-medium bg-slate-50/30">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
@@ -336,13 +338,9 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
                         </td>
                         
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <AuditTickButton 
-                              isNoted={notedOverrides[trx.id] !== undefined ? notedOverrides[trx.id] : (trx.isNoted !== undefined ? trx.isNoted : false)}
-                              onToggle={() => handleToggleNoted(trx)}
-                            />
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}></span>
-                            <div className="flex flex-col">
+                            <div className="flex flex-col min-w-0">
                               <span className="text-slate-700 font-medium group-hover:text-slate-900 transition-colors line-clamp-1">
                                 {extractCompanyName(trx.description)}
                               </span>
@@ -350,6 +348,19 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
                               {billedVal > 0 && (
                                 <span className="text-[10px] text-slate-500 mt-0.5 tracking-wide group-hover:text-slate-700 transition-colors">
                                   Bill: AED {billedVal.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                </span>
+                              )}
+
+                              {/* Itemized Denominations Badge */}
+                              {trx.hasDenomination && trx.denominations && typeof trx.denominations === 'object' && (
+                                <span 
+                                  className="text-[10px] text-emerald-600 font-semibold mt-0.5 tracking-wide flex items-center gap-1 group-hover:text-emerald-700 transition-colors cursor-help"
+                                  title={`Itemized Denominations: ${Object.entries(trx.denominations).filter(([_, q]) => parseInt(q, 10) > 0).map(([d, q]) => `${q}x ${d}`).join(', ')}`}
+                                >
+                                  <svg className="w-3 h-3 shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                  </svg>
+                                  Itemized ({Object.entries(trx.denominations).filter(([_, q]) => parseInt(q, 10) > 0).map(([d, q]) => `${q}x ${d}`).join(', ')})
                                 </span>
                               )}
 
@@ -389,6 +400,14 @@ export default function InflowLogsCard({ inflowsData, loading, loadingMore, hasM
                               })()}
                             </div>
                           </div>
+                        </td>
+
+                        {/* ✅ NOTE TOGGLE CELL: Placed cleanly in between Company and Invoice */}
+                        <td className="px-4 py-4 text-center whitespace-nowrap">
+                          <AuditTickButton 
+                            isNoted={notedOverrides[trx.id] !== undefined ? notedOverrides[trx.id] : (trx.isNoted !== undefined ? trx.isNoted : false)}
+                            onToggle={() => handleToggleNoted(trx)}
+                          />
                         </td>
 
                         {/* NEW INVOICE DATA CELL */}
