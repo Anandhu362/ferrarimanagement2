@@ -82,8 +82,13 @@ export default function GroupEntry() {
     bundleTarget: 0,
     bundleDenomTotal: 0,
     itemizedDenomsTotal: 0,
+    itemizedShortage: 0,
+    maxExpenseCapacity: 0,
     totalPhysicalDenoms: 0,
     difference: 0,
+    hasOverDenomination: false,
+    underDeclaredExpenses: false,
+    expenseCapacityExceeded: false,
     expenseBarrierExceeded: false
   });
 
@@ -95,22 +100,44 @@ export default function GroupEntry() {
     const toggledInflow = invoices
       .filter(inv => !!inv.hasDenomination)
       .reduce((sum, inv) => sum + (parseFloat(inv.amount) || 0), 0);
-    const untoggledInflow = inflowTotal - toggledInflow;
+    const untoggledInflow = Math.max(0, inflowTotal - toggledInflow);
 
     const expTotal = showExpenses ? expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0) : 0;
     const netTotal = inflowTotal - expTotal;
 
-    // Strict Rule: Expenses cannot exceed un-toggled cash
-    const expenseBarrierExceeded = expTotal > untoggledInflow + 0.001;
+    // Itemized invoice denomination calculations
+    let itemizedDenomsTotal = 0;
+    let itemizedShortage = 0;
+    let hasOverDenomination = false;
 
-    // Remaining Bundle Target for Section 3 = untoggledInflow - expTotal
-    const bundleTarget = Math.max(0, untoggledInflow - expTotal);
+    invoices.forEach(inv => {
+      if (!inv.hasDenomination) return;
+      const invAmt = parseFloat(inv.amount) || 0;
+      const invDenomTotal = calculateDenominationTotal(inv.denominations);
+      itemizedDenomsTotal += invDenomTotal;
+
+      if (invDenomTotal > invAmt + 0.01) {
+        hasOverDenomination = true;
+      } else {
+        itemizedShortage += Math.max(0, invAmt - invDenomTotal);
+      }
+    });
+
+    const maxExpenseCapacity = itemizedShortage + untoggledInflow;
+
+    // Strict Boundary Conditions:
+    // 1. Under-declared expenses: Deducted cash without declaring enough expenses
+    const underDeclaredExpenses = expTotal < itemizedShortage - 0.01;
+    // 2. Capacity exceeded: Declared expenses exceed itemized deductions + un-toggled cash
+    const expenseCapacityExceeded = expTotal > maxExpenseCapacity + 0.01;
+    // 3. Combined barrier violation
+    const expenseBarrierExceeded = hasOverDenomination || underDeclaredExpenses || expenseCapacityExceeded;
+
+    // Remaining expenses to be absorbed by un-toggled cash
+    const remainingUnabsorbedExpense = Math.max(0, expTotal - itemizedShortage);
+    // Section 3 Remaining Bundle Target = untoggledInflow - remainingUnabsorbedExpense
+    const bundleTarget = Math.max(0, untoggledInflow - remainingUnabsorbedExpense);
     const bundleDenomTotal = calculateDenominationTotal(denominations);
-
-    const itemizedDenomsTotal = invoices.reduce((sum, inv) => {
-      if (!inv.hasDenomination) return sum;
-      return sum + calculateDenominationTotal(inv.denominations);
-    }, 0);
 
     const totalPhysicalDenoms = bundleDenomTotal + itemizedDenomsTotal;
     const difference = bundleTarget - bundleDenomTotal;
@@ -124,8 +151,13 @@ export default function GroupEntry() {
       bundleTarget,
       bundleDenomTotal,
       itemizedDenomsTotal,
+      itemizedShortage,
+      maxExpenseCapacity,
       totalPhysicalDenoms,
       difference,
+      hasOverDenomination,
+      underDeclaredExpenses,
+      expenseCapacityExceeded,
       expenseBarrierExceeded
     });
   }, [invoices, expenses, showExpenses, denominations]);
@@ -141,12 +173,12 @@ export default function GroupEntry() {
     );
     if (!areInvoicesValid) return false;
 
-    // Check every toggled invoice has exact matching denominations
+    // Check every toggled invoice has valid denomination entries (<= invoice amount)
     const areToggledInvoicesValid = invoices.every(inv => {
       if (!inv.hasDenomination) return true;
       const invTotal = calculateDenominationTotal(inv.denominations);
       const invAmount = parseFloat(inv.amount) || 0;
-      return Math.abs(invTotal - invAmount) < 0.01 && invAmount > 0;
+      return invAmount > 0 && invTotal <= invAmount + 0.01;
     });
     if (!areToggledInvoicesValid) return false;
 
@@ -160,12 +192,12 @@ export default function GroupEntry() {
     }
     if (!areExpensesValid) return false;
 
-    // Expense barrier: expenses cannot exceed un-toggled inflow
+    // Expense barrier check: must satisfy Δ_itemized <= E <= Δ_itemized + I_untoggled
     if (totals.expenseBarrierExceeded) return false;
 
     // Strict Math Check:
     // 1. Net must be > 0
-    // 2. Section 3 bundle difference must be 0 (bundle matches remaining un-toggled bundle target)
+    // 2. Section 3 bundle difference must be 0 (bundle matches remaining bundle target)
     // 3. Combined total of all physical notes must equal netTotal
     const isMathValid = (totals.net > 0) &&
       (Math.abs(totals.difference) < 0.01) &&
@@ -547,9 +579,14 @@ export default function GroupEntry() {
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
                               MATCHED
                             </span>
+                          ) : itemDiff > 0 ? (
+                            <span className="bg-indigo-100 text-indigo-700 border-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1" title="Cash deduction offset against declared operational expenses">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4" /></svg>
+                              OFFSET: AED {itemDiff.toFixed(2)}
+                            </span>
                           ) : itemAmt > 0 ? (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${itemDiff > 0 ? 'bg-rose-100 text-rose-700 border-rose-300' : 'bg-amber-100 text-amber-700 border-amber-300'}`}>
-                              {itemDiff > 0 ? 'SHORT' : 'OVER'}: {Math.abs(itemDiff).toFixed(2)}
+                            <span className="bg-rose-100 text-rose-700 border-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-md border">
+                              OVER: {Math.abs(itemDiff).toFixed(2)}
                             </span>
                           ) : null}
                         </div>
@@ -596,7 +633,12 @@ export default function GroupEntry() {
               <div>
                 <h3 className="text-sm font-bold text-rose-700 uppercase tracking-widest">2. Cash Deducted (Expenses)</h3>
                 <p className="text-xs font-medium text-slate-500 mt-0.5">
-                  Available un-toggled cash to absorb expenses: <strong className="text-slate-800 font-bold">AED {totals.untoggledInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>
+                  Available Expense Absorption: <strong className="text-slate-800 font-bold">AED {totals.maxExpenseCapacity.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>
+                  {totals.itemizedShortage > 0 && (
+                    <span className="text-indigo-600 font-medium ml-1.5">
+                      (Itemized Deductions: AED {totals.itemizedShortage.toFixed(2)}{totals.untoggledInflow > 0 ? ` + Un-toggled Cash: AED ${totals.untoggledInflow.toFixed(2)}` : ''})
+                    </span>
+                  )}
                 </p>
               </div>
               <span className="text-sm font-semibold text-rose-600 bg-rose-100/50 px-3 py-1 rounded-full border border-rose-200/50">
@@ -604,14 +646,48 @@ export default function GroupEntry() {
               </span>
             </div>
 
-            {/* Strict Expense Boundary Warning */}
-            {totals.expenseBarrierExceeded && (
+            {/* Expense Boundary Feedback Banners */}
+            {totals.hasOverDenomination && (
               <div className="mb-5 p-4 rounded-2xl bg-rose-100 border border-rose-300 text-rose-800 text-xs font-semibold flex items-center gap-3 shadow-xs">
                 <svg className="w-5 h-5 shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <span>
-                  <strong>Expense Boundary Exceeded:</strong> Expenses (AED {totals.expense.toFixed(2)}) cannot exceed available un-toggled cash (AED {totals.untoggledInflow.toFixed(2)}). Toggled invoices have dedicated physical note breakdowns and cannot absorb expenses.
+                  <strong>Over-Denomination:</strong> An invoice note breakdown contains more cash than the invoice amount. Physical denominations cannot exceed invoice face value.
+                </span>
+              </div>
+            )}
+
+            {totals.underDeclaredExpenses && (
+              <div className="mb-5 p-4 rounded-2xl bg-amber-100 border border-amber-300 text-amber-800 text-xs font-semibold flex items-center gap-3 shadow-xs">
+                <svg className="w-5 h-5 shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>
+                  <strong>Unbacked Invoice Deduction:</strong> Total itemized cash deductions across invoice drawers (AED {totals.itemizedShortage.toFixed(2)}) exceed declared expenses (AED {totals.expense.toFixed(2)}). All deducted cash must be accounted for as declared expenses.
+                </span>
+              </div>
+            )}
+
+            {totals.expenseCapacityExceeded && (
+              <div className="mb-5 p-4 rounded-2xl bg-rose-100 border border-rose-300 text-rose-800 text-xs font-semibold flex items-center gap-3 shadow-xs">
+                <svg className="w-5 h-5 shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>
+                  <strong>Expense Capacity Exceeded:</strong> Declared expenses (AED {totals.expense.toFixed(2)}) exceed total available cash capacity (AED {totals.maxExpenseCapacity.toFixed(2)}). Deductions cannot exceed available cash.
+                </span>
+              </div>
+            )}
+
+            {!totals.expenseBarrierExceeded && totals.expense > 0 && (
+              <div className="mb-5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2 shadow-xs">
+                <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>
+                  <strong>Expenses Verified:</strong> AED {totals.expense.toFixed(2)} fully covered
+                  {totals.itemizedShortage > 0 ? ` (AED ${totals.itemizedShortage.toFixed(2)} from invoice deductions${totals.expense > totals.itemizedShortage ? ` + AED ${(totals.expense - totals.itemizedShortage).toFixed(2)} from un-toggled cash` : ''})` : ' from un-toggled cash'}.
                 </span>
               </div>
             )}
@@ -693,7 +769,7 @@ export default function GroupEntry() {
               <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
-              <span>All cash has been itemized into dedicated invoice drawers (Total: AED {totals.toggledInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}). No remaining bundle required.</span>
+              <span>All physical cash has been itemized into dedicated invoice drawers (Total Physical Notes: AED {totals.itemizedDenomsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}). No remaining bundle required.</span>
             </div>
           )}
 
