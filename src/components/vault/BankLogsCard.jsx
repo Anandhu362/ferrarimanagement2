@@ -1,8 +1,10 @@
 // frontend/src/components/vault/BankLogsCard.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import api from '../../config/api';
+import api, { toggleLedgerNotedRecord } from '../../config/api';
 import PremiumCalendar from '../shared/PremiumCalendar';
 import EditBankLogModal from './EditBankLogModal';
+import ExportBankPdfModal from './ExportBankPdfModal';
+import AuditTickButton from '../logs/AuditTickButton';
 
 export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSuccess }) {
   const [logs, setLogs] = useState([]);
@@ -12,14 +14,20 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
   const [selectedDates, setSelectedDates] = useState([]);
   const [filterType, setFilterType] = useState('ALL'); 
   
-  // UI Dropdown State
+  // UI Dropdown & Modal State
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+  const [isExportPdfModalOpen, setIsExportPdfModalOpen] = useState(false);
   
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
 
+  // Audited Notes & Keyboard Navigation State
+  const [notedOverrides, setNotedOverrides] = useState({});
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const containerRef = useRef(null);
+  const isKeyboardNav = useRef(false);
   const dropdownRef = useRef(null);
 
   // Close custom dropdown if clicked outside
@@ -64,11 +72,11 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
     setSelectedDates(dates);
     
     if (onDateChange) {
-        if (dates && dates.length > 0) {
-            onDateChange(dates[0]);
-        } else {
-            onDateChange(null);
-        }
+      if (dates && dates.length > 0) {
+        onDateChange(dates[0]);
+      } else {
+        onDateChange(null);
+      }
     }
   };
 
@@ -96,17 +104,45 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
         
         // Trigger parent refresh
         if (onEditSuccess) {
-            onEditSuccess();
+          onEditSuccess();
         }
         
         if (onDateChange && selectedDates.length > 0) {
-            onDateChange(selectedDates[0]);
+          onDateChange(selectedDates[0]);
         }
       }
     } catch (error) {
       console.error("Error updating bank log:", error);
       const errMsg = error.response?.data?.message || error.message || "Failed to update transaction.";
       alert(`Update Failed: ${errMsg}`);
+    }
+  };
+
+  // Toggle isNoted audit status with optimistic UI update
+  const handleToggleNoted = async (log) => {
+    if (!log || !log.id) return;
+    const currentStatus = notedOverrides[log.id] !== undefined 
+      ? notedOverrides[log.id] 
+      : (log.isNoted !== undefined ? log.isNoted : false);
+    const newStatus = !currentStatus;
+
+    setNotedOverrides(prev => ({ ...prev, [log.id]: newStatus }));
+
+    try {
+      const rawBranch = localStorage.getItem('active_branch') || 'Sharjha';
+      let branchId = rawBranch;
+      try {
+        const parsed = JSON.parse(rawBranch);
+        branchId = parsed?.id || parsed?.branchId || parsed;
+      } catch (e) {}
+      if (typeof branchId === 'string') {
+        branchId = branchId.replace(/['"]+/g, '').trim();
+      }
+
+      await toggleLedgerNotedRecord(branchId, log.id, newStatus);
+    } catch (err) {
+      console.error('[BankLogsCard.jsx] Failed to toggle noted status:', err);
+      setNotedOverrides(prev => ({ ...prev, [log.id]: currentStatus }));
     }
   };
 
@@ -132,22 +168,63 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
     return true;
   });
 
+  // Reset selected row when filtered results change
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [filterType, selectedDates]);
+
+  // Auto-scroll selected row into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && containerRef.current) {
+      const rows = containerRef.current.querySelectorAll('.bank-log-row');
+      if (rows[selectedIndex]) {
+        rows[selectedIndex].scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selectedIndex]);
+
+  // Keyboard navigation listener (ArrowUp, ArrowDown, Enter)
+  const handleKeyDown = (e) => {
+    if (!displayedLogs || displayedLogs.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      isKeyboardNav.current = true;
+      setSelectedIndex((prev) => Math.min(prev + 1, displayedLogs.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      isKeyboardNav.current = true;
+      setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      if (selectedIndex >= 0 && selectedIndex < displayedLogs.length) {
+        e.preventDefault();
+        handleToggleNoted(displayedLogs[selectedIndex]);
+      }
+    }
+  };
+
   return (
-    <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col h-full min-h-[600px] relative z-10">
+    <div 
+      className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col h-full min-h-[600px] relative z-10 outline-none focus:ring-1 focus:ring-slate-200"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 relative z-30">
         <div>
           <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Transaction Logs</h3>
-          <p className="text-xs text-slate-500 mt-1 font-light">Recent bank activity ledger.</p>
+          <p className="text-xs text-slate-500 mt-1 font-light">Recent bank activity ledger with audit verification.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap sm:flex-nowrap">
           
+          {/* Custom Filter Type Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button 
               onClick={() => {
                 setIsTypeDropdownOpen(!isTypeDropdownOpen);
                 setIsCalendarOpen(false);
+                setIsExportPdfModalOpen(false);
               }}
               className="flex items-center gap-2 bg-[#FCFCFD] border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:border-brand-light/50 focus:ring-2 focus:ring-brand-light/10 transition-all shadow-sm"
             >
@@ -180,11 +257,13 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
             )}
           </div>
 
+          {/* Date Filter with PremiumCalendar */}
           <div className="relative z-20">
             <button 
               onClick={() => {
                 setIsCalendarOpen(!isCalendarOpen);
                 setIsTypeDropdownOpen(false);
+                setIsExportPdfModalOpen(false);
               }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm border ${
                 selectedDates.length > 0 
@@ -208,10 +287,37 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
               onDateSelect={handleDateSelect}
             />
           </div>
+
+          {/* FinTech Audit PDF Export Block */}
+          <div className="relative z-20">
+            <button 
+              onClick={() => {
+                setIsExportPdfModalOpen(!isExportPdfModalOpen);
+                setIsCalendarOpen(false);
+                setIsTypeDropdownOpen(false);
+              }}
+              className="flex items-center gap-2 bg-[#FCFCFD] border border-slate-200 text-slate-700 px-3.5 py-2.5 rounded-xl text-sm font-medium hover:text-white hover:bg-rose-500 hover:border-rose-500 transition-all shadow-sm group"
+              title="Export Bank Daily Audit PDF Statement"
+            >
+              <svg className="w-4 h-4 text-rose-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <span className="hidden sm:inline">Export PDF</span>
+            </button>
+
+            <ExportBankPdfModal 
+              isOpen={isExportPdfModalOpen} 
+              onClose={() => setIsExportPdfModalOpen(false)} 
+            />
+          </div>
+
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 space-y-3 no-scrollbar relative z-10">
+      <div 
+        ref={containerRef}
+        className="flex-1 overflow-y-auto pr-2 space-y-3 no-scrollbar relative z-10"
+      >
         {loading ? (
           <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-50">
             <span className="relative flex h-6 w-6">
@@ -228,8 +334,12 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
             <p className="text-xs text-slate-400 mt-1">Adjust your filters or date selection.</p>
           </div>
         ) : (
-          displayedLogs.map((log) => {
+          displayedLogs.map((log, index) => {
             const isCredit = log.type === 'BANK_MANUAL_CREDIT' || log.type === 'OUTFLOW';
+            const isRowSelected = selectedIndex === index;
+            const isNoted = notedOverrides[log.id] !== undefined 
+              ? notedOverrides[log.id] 
+              : (log.isNoted !== undefined ? log.isNoted : false);
             
             let rawTitle = (log.description || '').replace('[Bank Account] ', '').split(' - Notes removed:')[0];
             
@@ -238,18 +348,31 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
             const companyMatch = rawTitle.match(/\[(.*?)\] (.*)/);
             
             if (companyMatch) {
-                displayTitle = companyMatch[1]; 
-                displaySubtitle = companyMatch[2]; 
+              displayTitle = companyMatch[1]; 
+              displaySubtitle = companyMatch[2]; 
             } else if (isCredit && log.type === 'OUTFLOW') {
-                displaySubtitle = 'Physical Cash Deposit';
+              displaySubtitle = 'Physical Cash Deposit';
             }
 
             return (
               <div 
                 key={log.id} 
-                className="group p-4 rounded-2xl bg-[#FCFCFD] hover:bg-white border border-slate-100 hover:border-slate-200 transition-all shadow-sm hover:shadow-md flex items-center justify-between"
+                onClick={() => setSelectedIndex(index)}
+                className={`bank-log-row group p-4 rounded-2xl border transition-all shadow-sm flex items-center justify-between cursor-pointer ${
+                  isRowSelected 
+                    ? 'bg-emerald-50/50 border-emerald-300 ring-2 ring-emerald-400/25 shadow-md' 
+                    : 'bg-[#FCFCFD] hover:bg-white border-slate-100 hover:border-slate-200 hover:shadow-md'
+                }`}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3.5">
+                  {/* Interactive Audit Note Checkmark Button */}
+                  <div className="shrink-0">
+                    <AuditTickButton 
+                      isNoted={isNoted} 
+                      onToggle={() => handleToggleNoted(log)} 
+                    />
+                  </div>
+
                   <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 border ${
                     isCredit ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-rose-50 border-rose-100 text-rose-600'
                   }`}>
@@ -271,7 +394,7 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
                 </div>
 
                 <div className="flex items-center gap-3 pl-4">
-                  {/* ✅ Minimal Fintech Edited Badge conditionally rendered */}
+                  {/* Minimal Fintech Edited Badge conditionally rendered */}
                   {log.isEdited && (
                     <div className="flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-wider hidden sm:flex" title="This transaction has been edited">
                       Edited
@@ -282,11 +405,14 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
                     isCredit ? 'text-emerald-600' : 'text-slate-900'
                   }`}>
                     {isCredit ? '+' : '-'} <span className="text-xs mr-1 opacity-70">AED</span>
-                    {log.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                    {parseFloat(log.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </div>
                   
                   <button 
-                    onClick={() => handleEditClick(log)} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditClick(log);
+                    }} 
                     className="text-slate-400 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     title="Edit Transaction"
                   >
@@ -301,12 +427,14 @@ export default function BankLogsCard({ refreshTrigger, onDateChange, onEditSucce
         )}
       </div>
 
+      {/* Edit Modal */}
       <EditBankLogModal 
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         logData={selectedLog}
         onSave={handleSaveChanges}
       />
+
     </div>
   );
 }
