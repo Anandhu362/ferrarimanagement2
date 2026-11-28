@@ -33,7 +33,8 @@ import OrderHistory from './pages/orders/OrderHistory';
 import InventoryPage from './pages/inventory/InventoryPage';
 import CustomerManagement from './pages/customers/CustomerManagement'; 
 import DeliveryFormGen from './pages/orders/DeliveryFormGen'; 
-import EmployeeManagement from './pages/operations/EmployeeManagement'; 
+import EmployeeManagement from './pages/operations/EmployeeManagement';
+import VehicleManagement from './pages/operations/VehicleManagement'; // ✅ NEW: Import Vehicle Tracking Page
 import LPOGenerator from './pages/operations/LPOGenerator'; // ✅ NEW: Import LPO Generator
 import VendorsPage from './pages/procurement/VendorsPage'; // ✅ NEW: Import Vendors Page
 
@@ -135,6 +136,7 @@ function App() {
             
             {/* ✅ NEW: Protected Employee Management & Operations Routes */}
             <Route path="/operations/employees" element={<EmployeeManagement />} />
+            <Route path="/operations/vehicles" element={<VehicleManagement />} /> {/* ✅ NEW: Vehicle Tracking Route */}
             <Route path="/operations/lpo-generator" element={<LPOGenerator />} /> {/* ✅ NEW: LPO Generator Route */}
             <Route path="/procurement/vendors" element={<VendorsPage />} /> {/* ✅ NEW: Vendors Route */}
           </Route>

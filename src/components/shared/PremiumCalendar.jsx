@@ -1,5 +1,6 @@
 // frontend/src/components/shared/PremiumCalendar.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * PremiumCalendar - A high-end fintech-style date picker dropdown.
@@ -24,7 +25,10 @@ export default function PremiumCalendar({
 }) {
   const [viewDate, setViewDate] = useState(new Date());
   // 'date' (days grid), 'month' (12 months grid), 'year' (decade grid)
-  const [viewMode, setViewMode] = useState('date'); 
+  const [viewMode, setViewMode] = useState('date');
+  const [coords, setCoords] = useState(null);
+  const anchorRef = useRef(null);
+  const calendarRef = useRef(null);
 
   // Normalize both selectedDates and selectedDate into a unified Array of strings
   const normalizedDates = useMemo(() => {
@@ -61,7 +65,56 @@ export default function PremiumCalendar({
     }
   }, [isOpen, firstSelectedDate]);
 
-  if (!isOpen) return null;
+  // Compute viewport-safe fixed coordinates relative to the trigger container so the calendar
+  // never clips inside scrollable modals or clashes with sticky footers/headers.
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setCoords(null);
+      return;
+    }
+
+    const updatePosition = () => {
+      const parent = anchorRef.current?.parentElement;
+      if (!parent) return;
+
+      const rect = parent.getBoundingClientRect();
+      const calWidth = 304;
+      const calHeight = calendarRef.current?.offsetHeight || 360;
+      const margin = 12;
+
+      let left = rect.left;
+      if (left + calWidth > window.innerWidth - margin) {
+        left = rect.right - calWidth;
+      }
+      left = Math.max(margin, Math.min(left, window.innerWidth - calWidth - margin));
+
+      const spaceBelow = window.innerHeight - rect.bottom - margin;
+      const spaceAbove = rect.top - margin;
+
+      let top;
+      if (spaceBelow >= calHeight || spaceBelow >= spaceAbove) {
+        top = Math.min(rect.bottom + 8, window.innerHeight - calHeight - margin);
+      } else {
+        top = Math.max(margin, rect.top - calHeight - 8);
+      }
+
+      setCoords({ top: Math.max(margin, top), left });
+    };
+
+    updatePosition();
+    const rafId = requestAnimationFrame(updatePosition);
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen, viewMode]);
+
+  if (!isOpen) return <span ref={anchorRef} className="hidden" aria-hidden="true" />;
 
   const currentYear = viewDate.getFullYear();
   const currentMonth = viewDate.getMonth();
@@ -182,16 +235,24 @@ export default function PremiumCalendar({
     }
   };
 
-  return (
+  const calendarOverlay = (
     <>
       {/* Invisible Backdrop */}
       <div 
-        className="fixed inset-0 z-[100] bg-transparent" 
+        className="fixed inset-0 z-[9990] bg-transparent" 
         onClick={onClose}
       ></div>
       
-      {/* Calendar Box */}
-      <div className="absolute top-[calc(100%+12px)] right-0 p-5 bg-white rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100/80 z-[110] w-[300px] animate-in slide-in-from-top-2 fade-in duration-200">
+      {/* Portal Calendar Box (viewport-clamped, zero modal clipping or layer clash) */}
+      <div
+        ref={calendarRef}
+        style={
+          coords
+            ? { top: `${coords.top}px`, left: `${coords.left}px`, visibility: 'visible' }
+            : { top: '-9999px', left: '-9999px', visibility: 'hidden' }
+        }
+        className="fixed p-5 bg-white rounded-[1.5rem] shadow-[0_24px_60px_rgba(15,23,42,0.22)] border border-slate-200/80 z-[9999] w-[304px] animate-in fade-in zoom-in-95 duration-150"
+      >
         
         {/* Navigation Header */}
         <div className="flex justify-between items-center mb-5">
@@ -344,6 +405,13 @@ export default function PremiumCalendar({
           )
         )}
       </div>
+    </>
+  );
+
+  return (
+    <>
+      <span ref={anchorRef} className="hidden" aria-hidden="true" />
+      {typeof document !== 'undefined' ? createPortal(calendarOverlay, document.body) : calendarOverlay}
     </>
   );
 }

@@ -62,6 +62,8 @@ export default function GroupEntry() {
   
   // ✅ NEW: Hard lock to prevent double-click race conditions entirely
   const submitLock = useRef(false);
+  const containerRef = useRef(null);
+  const pendingFocusRef = useRef(null);
   
   // Batch Date State (Defaults to Today)
   const [batchDate, setBatchDate] = useState(new Date().toISOString().split('T')[0]);
@@ -211,6 +213,10 @@ export default function GroupEntry() {
   };
 
   const toggleInvoiceDenomination = (id) => {
+    const target = invoices.find(inv => inv.id === id);
+    if (target && !target.hasDenomination) {
+      pendingFocusRef.current = `[data-focus-id="inv-denom-${id}-0"]`;
+    }
     setInvoices(invoices.map(inv => {
       if (inv.id === id) {
         return {
@@ -248,19 +254,38 @@ export default function GroupEntry() {
     setDenominations({ ...denominations, [denomLabel]: cleanValue });
   };
 
-  // ✅ UPDATED: Add new rows with secure IDs
-  const addInvoiceRow = () => setInvoices([
-    ...invoices,
-    {
-      id: generateTrxId(),
-      companyName: '',
-      invoiceNo: '',
-      amount: '',
-      hasDenomination: false,
-      denominations: createEmptyDenominations()
-    }
-  ]);
-  const addExpenseRow = () => setExpenses([...expenses, { id: generateExpId(), description: '', amount: '' }]);
+  // ✅ UPDATED: Add new rows with secure IDs & auto-focus (Tally style)
+  const addInvoiceRow = () => {
+    const newId = generateTrxId();
+    pendingFocusRef.current = `[data-focus-id="inv-company-${newId}"]`;
+    setInvoices(prev => [
+      ...prev,
+      {
+        id: newId,
+        companyName: '',
+        invoiceNo: '',
+        amount: '',
+        hasDenomination: false,
+        denominations: createEmptyDenominations()
+      }
+    ]);
+  };
+
+  const addExpenseRow = () => {
+    const newId = generateExpId();
+    pendingFocusRef.current = `[data-focus-id="exp-desc-${newId}"]`;
+    setExpenses(prev => [...prev, { id: newId, description: '', amount: '' }]);
+  };
+
+  const toggleExpensesSection = () => {
+    setShowExpenses(prev => {
+      const next = !prev;
+      if (next && expenses.length > 0) {
+        pendingFocusRef.current = `[data-focus-id="exp-desc-${expenses[0].id}"]`;
+      }
+      return next;
+    });
+  };
 
   const removeInvoiceRow = (id) => {
     if (invoices.length > 1) setInvoices(invoices.filter(inv => inv.id !== id));
@@ -361,16 +386,197 @@ export default function GroupEntry() {
     }
   };
 
+  // Auto-focus first input on mount
+  useEffect(() => {
+    const firstInput = containerRef.current?.querySelector('input:not([disabled])');
+    if (firstInput) firstInput.focus();
+  }, []);
+
+  // Consume pending focus after dynamic row/section render
+  useEffect(() => {
+    if (!pendingFocusRef.current) return;
+    const target = containerRef.current?.querySelector(pendingFocusRef.current);
+    if (target) {
+      target.focus();
+      if (typeof target.select === 'function') target.select();
+      pendingFocusRef.current = null;
+    }
+  }, [invoices, expenses, showExpenses]);
+
+  // Escape / Enter closes modal or calendar and restores focus
+  useEffect(() => {
+    const onGlobalKeyDown = (e) => {
+      if (modal.isOpen && (e.key === 'Escape' || e.key === 'Enter')) {
+        e.preventDefault();
+        setModal(prev => ({ ...prev, isOpen: false }));
+        setTimeout(() => {
+          const firstInput = containerRef.current?.querySelector('input:not([disabled])');
+          if (firstInput) firstInput.focus();
+        }, 30);
+      } else if (isCalendarOpen && e.key === 'Escape') {
+        e.preventDefault();
+        setIsCalendarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onGlobalKeyDown);
+    return () => window.removeEventListener('keydown', onGlobalKeyDown);
+  }, [modal.isOpen, isCalendarOpen]);
+
+  const focusInputElement = (el) => {
+    if (!el) return;
+    el.focus();
+    if (typeof el.select === 'function') {
+      try { el.select(); } catch (_) { /* ignore on unsupported types */ }
+    }
+  };
+
+  // Tally-Model Keyboard Navigation Engine (Enter, Shift+Enter, Backspace, ↑↓←→, Alt shortcuts, Ctrl+Enter)
   const handleKeyDown = (e) => {
+    const container = containerRef.current || e.target.closest('.group-entry-container');
+    if (!container) return;
+
+    const allInputs = Array.from(container.querySelectorAll('input:not([disabled])'));
+    const currentIndex = allInputs.indexOf(e.target);
+
+    // 1. Ctrl + Enter -> Instant Submit (Tally Accept)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (isFormValid() && !isSubmitting) {
+        handleSubmit();
+      }
+      return;
+    }
+
+    // 2. Alt Shortcuts (Tally Quick Actions)
+    if (e.altKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'n' || key === 'a') {
+        e.preventDefault();
+        const groupEl = e.target.closest('[data-nav-group]');
+        if (groupEl?.getAttribute('data-nav-group') === 'expense') {
+          addExpenseRow();
+        } else {
+          addInvoiceRow();
+        }
+        return;
+      }
+      if (key === 'e') {
+        e.preventDefault();
+        toggleExpensesSection();
+        return;
+      }
+      if (key === 'd') {
+        const invEl = e.target.closest('[data-invoice-id]');
+        if (invEl) {
+          e.preventDefault();
+          toggleInvoiceDenomination(invEl.getAttribute('data-invoice-id'));
+        }
+        return;
+      }
+    }
+
+    // 3. Enter (Next Field) / Shift+Enter (Previous Field)
     if (e.key === 'Enter') {
       e.preventDefault();
-      const container = e.target.closest('.group-entry-container');
-      if (container) {
-        const inputs = Array.from(container.querySelectorAll('input:not([disabled])'));
-        const currentIndex = inputs.indexOf(e.target);
-        if (currentIndex > -1 && currentIndex < inputs.length - 1) {
-          inputs[currentIndex + 1].focus();
+      if (e.shiftKey) {
+        if (currentIndex > 0) {
+          focusInputElement(allInputs[currentIndex - 1]);
         }
+      } else {
+        if (currentIndex > -1 && currentIndex < allInputs.length - 1) {
+          focusInputElement(allInputs[currentIndex + 1]);
+        } else if (currentIndex === allInputs.length - 1) {
+          const submitBtn = container.querySelector('[data-nav-submit="true"]');
+          if (submitBtn && !submitBtn.disabled) {
+            submitBtn.focus();
+          }
+        }
+      }
+      return;
+    }
+
+    // 4. Backspace on empty input -> Previous Field (Classic Tally Back-Nav)
+    if (e.key === 'Backspace' && e.target.value === '') {
+      if (currentIndex > 0) {
+        e.preventDefault();
+        focusInputElement(allInputs[currentIndex - 1]);
+      }
+      return;
+    }
+
+    // 5. ArrowUp / ArrowDown -> 2D Vertical Column-Preserving Grid Navigation
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      // Prevent browser from incrementing/decrementing <input type="number">
+      e.preventDefault();
+      const groupEls = Array.from(container.querySelectorAll('[data-nav-group]'));
+      const rows = groupEls
+        .map(g => Array.from(g.querySelectorAll('input:not([disabled])')))
+        .filter(r => r.length > 0);
+
+      let rowIdx = -1;
+      let colIdx = -1;
+      for (let r = 0; r < rows.length; r++) {
+        const c = rows[r].indexOf(e.target);
+        if (c !== -1) {
+          rowIdx = r;
+          colIdx = c;
+          break;
+        }
+      }
+
+      if (rowIdx !== -1) {
+        if (e.key === 'ArrowDown') {
+          if (rowIdx < rows.length - 1) {
+            const targetRow = rows[rowIdx + 1];
+            const targetCol = Math.min(colIdx, targetRow.length - 1);
+            focusInputElement(targetRow[targetCol]);
+          } else {
+            const submitBtn = container.querySelector('[data-nav-submit="true"]');
+            if (submitBtn && !submitBtn.disabled) {
+              submitBtn.focus();
+            }
+          }
+        } else {
+          if (rowIdx > 0) {
+            const targetRow = rows[rowIdx - 1];
+            const targetCol = Math.min(colIdx, targetRow.length - 1);
+            focusInputElement(targetRow[targetCol]);
+          }
+        }
+      }
+      return;
+    }
+
+    // 6. ArrowRight / ArrowLeft -> Smart Horizontal Field Navigation
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const isNumber = e.target.type === 'number';
+      const val = e.target.value || '';
+      const selStart = isNumber ? (e.key === 'ArrowRight' ? val.length : 0) : e.target.selectionStart;
+      const selEnd = isNumber ? (e.key === 'ArrowRight' ? val.length : 0) : e.target.selectionEnd;
+      const isAllSelected = !isNumber && val.length > 0 && selStart === 0 && selEnd === val.length;
+
+      if (e.key === 'ArrowRight') {
+        const isAtEnd = isNumber || val.length === 0 || isAllSelected || (selStart === val.length && selEnd === val.length);
+        if (isAtEnd && currentIndex > -1 && currentIndex < allInputs.length - 1) {
+          e.preventDefault();
+          focusInputElement(allInputs[currentIndex + 1]);
+        }
+      } else {
+        const isAtStart = isNumber || val.length === 0 || isAllSelected || (selStart === 0 && selEnd === 0);
+        if (isAtStart && currentIndex > 0) {
+          e.preventDefault();
+          focusInputElement(allInputs[currentIndex - 1]);
+        }
+      }
+    }
+  };
+
+  const handleSubmitKeyDown = (e) => {
+    if (e.key === 'ArrowUp' || (e.key === 'Enter' && e.shiftKey)) {
+      e.preventDefault();
+      const allInputs = Array.from((containerRef.current || document).querySelectorAll('input:not([disabled])'));
+      if (allInputs.length > 0) {
+        focusInputElement(allInputs[allInputs.length - 1]);
       }
     }
   };
@@ -378,7 +584,7 @@ export default function GroupEntry() {
   const formIsValid = isFormValid();
 
   return (
-    <div className="max-w-[1200px] mx-auto animate-in fade-in duration-500 pb-12 relative group-entry-container">
+    <div ref={containerRef} className="max-w-[1200px] mx-auto animate-in fade-in duration-500 pb-12 relative group-entry-container">
       
       {/* Header Section */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -479,7 +685,9 @@ export default function GroupEntry() {
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">1. Invoices Received</h3>
             <button 
-              onClick={() => setShowExpenses(!showExpenses)} 
+              type="button"
+              onClick={toggleExpensesSection} 
+              title="Toggle Cash Expenses (Alt+E)"
               className={`text-xs font-semibold px-4 py-2 rounded-full flex items-center gap-2 transition-all duration-300 ${showExpenses ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 shadow-sm'}`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4" /></svg>
@@ -496,10 +704,11 @@ export default function GroupEntry() {
 
               return (
                 <div key={inv.id} className="space-y-2">
-                  <div className="flex gap-3 sm:gap-4 items-center group">
+                  <div data-nav-group="invoice" data-invoice-id={inv.id} className="flex gap-3 sm:gap-4 items-center group">
                     <div className="flex-1">
                       <input 
                         type="text" 
+                        data-focus-id={`inv-company-${inv.id}`}
                         placeholder="Company Name" 
                         value={inv.companyName} 
                         onChange={e => handleInvoiceChange(inv.id, 'companyName', e.target.value)} 
@@ -511,8 +720,9 @@ export default function GroupEntry() {
                     {/* ✅ Itemized Note/Denomination Toggle Button: Placed in between Company and Invoice */}
                     <button
                       type="button"
+                      tabIndex={-1}
                       onClick={() => toggleInvoiceDenomination(inv.id)}
-                      title="Itemize specific physical note denominations for this invoice"
+                      title="Itemize specific physical note denominations for this invoice (Alt+D)"
                       className={`px-3 py-3 rounded-xl font-semibold text-xs transition-all flex items-center gap-1.5 shrink-0 border shadow-xs ${
                         inv.hasDenomination
                           ? 'bg-emerald-500 text-white border-emerald-600 hover:bg-emerald-600 shadow-emerald-500/20'
@@ -543,11 +753,14 @@ export default function GroupEntry() {
                         value={inv.amount} 
                         onChange={e => handleInvoiceChange(inv.id, 'amount', e.target.value)} 
                         onKeyDown={handleKeyDown} 
+                        onWheel={e => e.target.blur()}
                         className={`${baseInputClasses} pl-12 text-right font-semibold text-emerald-700`} 
                       />
                     </div>
 
                     <button 
+                      type="button"
+                      tabIndex={-1}
                       onClick={() => removeInvoiceRow(inv.id)} 
                       disabled={invoices.length === 1}
                       className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-slate-300 hover:bg-red-100 hover:text-red-600 transition-all duration-200 disabled:opacity-30"
@@ -592,14 +805,16 @@ export default function GroupEntry() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
-                        {DENOMINATIONS.map((d) => (
-                          <div key={d.label} className="bg-white border border-emerald-200/80 rounded-xl p-2 shadow-xs hover:border-emerald-400 transition-colors">
+                      <div data-nav-group="inv-denom" data-invoice-id={inv.id} className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
+                        {DENOMINATIONS.map((d, dIdx) => (
+                          <div key={d.label} className="bg-white border border-emerald-200/80 rounded-xl p-2 shadow-xs hover:border-emerald-400 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-400/25 transition-all">
                             <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider text-center mb-1">
                               {d.label}
                             </div>
                             <input
                               type="text"
+                              inputMode="decimal"
+                              data-focus-id={`inv-denom-${inv.id}-${dIdx}`}
                               placeholder="-"
                               value={(inv.denominations && inv.denominations[d.label]) || ''}
                               onChange={(e) => handleInvoiceDenominationChange(inv.id, d.label, e.target.value)}
@@ -694,15 +909,17 @@ export default function GroupEntry() {
             
             <div className="space-y-3">
               {expenses.map((exp) => (
-                <div key={exp.id} className="flex gap-4 items-center">
+                <div key={exp.id} data-nav-group="expense" className="flex gap-4 items-center">
                   <div className="flex-1">
-                    <input type="text" placeholder="Expense Description (e.g., Petrol, Petty Cash)" value={exp.description} onChange={e => handleExpenseChange(exp.id, 'description', e.target.value)} onKeyDown={handleKeyDown} className={expenseInputClasses} />
+                    <input type="text" data-focus-id={`exp-desc-${exp.id}`} placeholder="Expense Description (e.g., Petrol, Petty Cash)" value={exp.description} onChange={e => handleExpenseChange(exp.id, 'description', e.target.value)} onKeyDown={handleKeyDown} className={expenseInputClasses} />
                   </div>
                   <div className="relative w-1/3">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-400 text-xs font-medium">AED</span>
-                    <input type="number" placeholder="0.00" value={exp.amount} onChange={e => handleExpenseChange(exp.id, 'amount', e.target.value)} onKeyDown={handleKeyDown} className={`${expenseInputClasses} pl-12 text-right font-semibold`} />
+                    <input type="number" placeholder="0.00" value={exp.amount} onChange={e => handleExpenseChange(exp.id, 'amount', e.target.value)} onKeyDown={handleKeyDown} onWheel={e => e.target.blur()} className={`${expenseInputClasses} pl-12 text-right font-semibold`} />
                   </div>
                   <button 
+                    type="button"
+                    tabIndex={-1}
                     onClick={() => removeExpenseRow(exp.id)} 
                     disabled={expenses.length === 1}
                     className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-rose-300 hover:bg-rose-200 hover:text-rose-700 transition-all duration-200 disabled:opacity-30"
@@ -773,14 +990,15 @@ export default function GroupEntry() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
+          <div data-nav-group="bundle" className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
             {DENOMINATIONS.map((d) => (
-              <div key={d.label} className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-sm hover:border-brand-light/30 transition-colors">
+              <div key={d.label} className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-sm hover:border-brand-light/30 focus-within:border-brand-light focus-within:ring-4 focus-within:ring-brand-light/15 transition-all">
                 <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center mb-2">
                   {d.label}
                 </div>
                 <input
                   type="text"
+                  inputMode="decimal"
                   placeholder="-"
                   value={denominations[d.label]}
                   onChange={(e) => updateDenomination(d.label, e.target.value)}
@@ -792,11 +1010,31 @@ export default function GroupEntry() {
           </div>
 
           {/* Action Footer */}
-          <div className="mt-10 flex justify-end">
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Compact Tally Keyboard Navigation Legend */}
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 font-medium select-none">
+              <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-semibold text-slate-600 shadow-2xs">Enter</kbd> Next</span>
+              <span className="text-slate-300">·</span>
+              <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-semibold text-slate-600 shadow-2xs">Shift+Enter</kbd> Prev</span>
+              <span className="text-slate-300">·</span>
+              <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-semibold text-slate-600 shadow-2xs">↑↓←→</kbd> Move</span>
+              <span className="text-slate-300">·</span>
+              <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-semibold text-slate-600 shadow-2xs">Alt+N</kbd> Add Row</span>
+              <span className="text-slate-300">·</span>
+              <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-semibold text-slate-600 shadow-2xs">Alt+E</kbd> Expenses</span>
+              <span className="text-slate-300">·</span>
+              <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-semibold text-slate-600 shadow-2xs">Alt+D</kbd> Denom</span>
+              <span className="text-slate-300">·</span>
+              <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-semibold text-slate-600 shadow-2xs">Ctrl+Enter</kbd> Sync</span>
+            </div>
+
             <button 
+              type="button"
+              data-nav-submit="true"
               onClick={handleSubmit} 
+              onKeyDown={handleSubmitKeyDown}
               disabled={isSubmitting || !formIsValid}
-              className={`px-10 py-4 rounded-full font-semibold shadow-lg transition-all duration-300 flex items-center gap-2 ${
+              className={`px-10 py-4 rounded-full font-semibold shadow-lg transition-all duration-300 flex items-center gap-2 shrink-0 outline-none focus:ring-4 focus:ring-brand-light/30 ${
                 formIsValid && !isSubmitting
                   ? 'bg-brand-dark text-white hover:bg-brand-light hover:-translate-y-0.5 hover:shadow-xl' 
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-70'

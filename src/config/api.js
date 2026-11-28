@@ -105,6 +105,30 @@ export const deleteEmployee = async (branchId, employeeId) => {
 };
 
 // ----------------------------------------------------------------------
+// ✅ NEW: Vehicle Fleet Tracking API Helpers
+// ----------------------------------------------------------------------
+
+export const getVehicles = async (branchId) => {
+  return await api.get(`/api/vehicles/${encodeURIComponent(branchId)}`);
+};
+
+export const addVehicle = async (branchId, payload) => {
+  return await api.post(`/api/vehicles/${encodeURIComponent(branchId)}`, payload);
+};
+
+export const updateVehicleDocuments = async (branchId, vehicleId, payload) => {
+  return await api.patch(`/api/vehicles/${encodeURIComponent(branchId)}/${encodeURIComponent(vehicleId)}`, payload);
+};
+
+export const deleteVehicle = async (branchId, vehicleId) => {
+  return await api.delete(`/api/vehicles/${encodeURIComponent(branchId)}/${encodeURIComponent(vehicleId)}`);
+};
+
+export const sendManualVehicleAlert = async (branchId, vehicleId) => {
+  return await api.post(`/api/vehicles/${encodeURIComponent(branchId)}/alert/${encodeURIComponent(vehicleId)}`);
+};
+
+// ----------------------------------------------------------------------
 // ✅ NEW: Mail Configuration API Helpers
 // ----------------------------------------------------------------------
 
